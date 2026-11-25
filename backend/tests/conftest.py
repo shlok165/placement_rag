@@ -8,6 +8,10 @@ _base_url = os.environ.get(
 )
 os.environ["DATABASE_URL"] = _base_url.rsplit("/", 1)[0] + f"/{TEST_DB}"
 os.environ["LLM_MODE"] = "live" if os.environ.get("RUN_LIVE_LLM") == "1" else "mock"
+if os.environ["LLM_MODE"] == "mock":
+    # Ordinary test runs never even hold a key.
+    for name in [n for n in os.environ if n.startswith(("LLM_API", "LLM_MODEL", "POLLINATIONS_"))]:
+        del os.environ[name]
 os.environ["RAW_FILES_DIR"] = "/tmp/test-raw"
 os.environ["ALLOWED_EMAIL_DOMAINS"] = "iitrpr.ac.in"
 os.environ["DEV_EMAIL_DOMAINS"] = "example.com"

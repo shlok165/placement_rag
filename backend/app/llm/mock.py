@@ -2,6 +2,8 @@
 
 from typing import Any
 
+from app.agent.memory_rules import extract_rules
+from app.agent.mock_agent import agent_turn
 from app.ingest.resume_rules import parse_resume_rules
 from app.ingest.rules import parse_posting
 from app.llm.types import LLMResponse, Message, Purpose
@@ -22,7 +24,20 @@ def _parse_resume(messages: list[Message], _: list[dict[str, Any]] | None) -> LL
     return LLMResponse(content=parse_resume_rules(_last_user(messages)).model_dump_json())
 
 
-_HANDLERS = {"parse_job": _parse_job, "parse_resume": _parse_resume}
+def _extract_memory(messages: list[Message], _: list[dict[str, Any]] | None) -> LLMResponse:
+    return LLMResponse(content=extract_rules(_last_user(messages)).model_dump_json())
+
+
+def _agent_turn(messages: list[Message], tools: list[dict[str, Any]] | None) -> LLMResponse:
+    return agent_turn(messages, tools)
+
+
+_HANDLERS = {
+    "parse_job": _parse_job,
+    "parse_resume": _parse_resume,
+    "extract_memory": _extract_memory,
+    "agent_turn": _agent_turn,
+}
 
 
 def complete(

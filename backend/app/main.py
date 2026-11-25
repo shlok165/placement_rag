@@ -16,6 +16,7 @@ from app.api import (
     admin_jobs,
     admin_team,
     auth,
+    chat,
     health,
     profile,
     search,
@@ -127,6 +128,7 @@ def create_app() -> FastAPI:
         search,
         profile,
         student,
+        chat,
     )
     for module in modules:
         app.include_router(module.router)
