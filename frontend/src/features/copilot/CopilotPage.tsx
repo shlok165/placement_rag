@@ -399,7 +399,7 @@ export function CopilotPage() {
           }
         </QueryState>
       </div>
-      <aside className="hidden lg:block" aria-label="Conversations">
+      <aside className="sticky top-20 hidden self-start lg:block" aria-label="Conversations">
         <h2 className="mb-2 text-sm font-semibold">Conversations</h2>
         {list}
         <Button asChild variant="link" className="mt-4 h-auto px-0">
