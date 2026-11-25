@@ -42,9 +42,20 @@ Checked against the live OpenAPI document (`/openapi.json`, version 0.3.0) and `
 ## Search
 
 - **Keyword queries are OR-ed.** `websearch_to_tsquery` requires every term, which returns nothing
-  for natural questions. Terms are OR-ed and `ts_rank_cd` does the ordering.
+  for natural questions. Any term may match.
 - **Search analytics are anonymous.** `search_events` stores the query and result counts with no
   user id. Recent searches live only in the browser.
+- **Rarity-weighted keywords.** Full-text terms are scored one by one and weighted by how few
+  postings contain them, in place of a hand-kept list of words to ignore.
+
+## Frontend
+
+- **Filters live in the address bar,** so a search can be bookmarked, shared and reloaded.
+- **Scroll containers are focusable regions,** so they can be scrolled with the keyboard.
+- **Dragging is pointer only.** Every card carries a stage list, which is the accessible way to move
+  it, so drag-and-drop stays an extra.
+- **`lucide-react`, `sonner` and `cmdk`** are used as in shadcn/ui. Components follow shadcn/ui
+  patterns over Radix and are grouped into a few files.
 
 ## Agent
 
@@ -59,8 +70,11 @@ Checked against the live OpenAPI document (`/openapi.json`, version 0.3.0) and `
   a job, so there is one consent pattern to learn.
 - **Over budget means mock, with a notice.** When a cap is hit the agent falls back to the
   rule-based assistant, which is still grounded in real postings, and the UI says so.
+- **No forced tool choice.** Providers differ in support for it, so the loop accepts a plain-text
+  reply, runs the same checks and records that it was not structured.
 
 ## Evals
 
+- **One live run only.** Later changes were not measured live, to respect the call budget.
 - **Isolated corpus.** CLI evals run in a separate database built from the synthetic dataset with a
   fixed reference date, so numbers are reproducible and never mix with demo data.

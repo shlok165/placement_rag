@@ -18,7 +18,9 @@ a forecast of live quality.
 ## How the weights were chosen
 
 Every other case went into a development half, and the weights in
-`backend/app/search/weights.toml` are the sweep rows with the highest MRR + nDCG@10 on that half.
+`backend/app/search/weights.toml` are the sweep rows with the highest MRR + nDCG@10 on that half. The re-rank weights were fixed
+before the titles of some full-time postings were reworded; on the final corpus they are within 0.01
+of the best row (1.633 against 1.642), which is noise at this size, so they were not tuned again.
 The held-out half was not used to choose weights, but its scores were visible while the keyword
 ranker was being fixed, so treat it as a sanity check and not as a blind test. With about 38 cases
 per half, one case moves hit@k by 2.6 points.

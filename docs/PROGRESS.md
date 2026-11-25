@@ -48,3 +48,14 @@ shows zero live calls.
 28 tool-use cases, 10 refusal cases, structured-output and grounding checks, a capped judge, and an
 eval workspace for coordinators. The live smoke test passed (at most 5 calls). One live eval run used
 88 of 150 allowed calls; its results and one grading fix are written down in `docs/EVALS.md`.
+
+## M7 HCI polish
+
+Command palette, shortcuts, tour, feedback widget, SUS survey, accessibility audit with axe in a real
+browser in both themes, keyboard-only walkthrough, 320px layout check. Findings and fixes are in
+`docs/HCI.md`.
+
+## M8 Production and docs
+
+Production compose with TLS, non-root and read-only containers and limits (run and checked), backup
+and restore (run and checked), security review, README, CI with browser tests.
