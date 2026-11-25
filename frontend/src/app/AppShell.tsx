@@ -141,7 +141,7 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <aside className="bg-card sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r p-4 lg:flex">
+      <div className="bg-card sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r p-4 lg:flex">
         <Link to={portal === 'admin' ? '/admin' : '/'} className="mb-6 rounded-md px-1">
           <Logo />
         </Link>
@@ -149,7 +149,7 @@ export function AppShell({
           <p className="text-muted-foreground mb-3 px-3 text-xs font-medium">Coordinator portal</p>
         )}
         <nav aria-label="Main">{nav()}</nav>
-      </aside>
+      </div>
       <div className="flex min-w-0 flex-col">
         <header className="bg-card/95 sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur sm:px-6">
           <Button
@@ -168,7 +168,7 @@ export function AppShell({
           >
             <Logo compact />
           </Link>
-          <div className="ml-auto flex items-center gap-1 lg:ml-0 lg:w-full lg:justify-between">
+          <div className="ml-auto flex items-center gap-1">
             {topbar}
             <UserMenu portal={portal} />
           </div>

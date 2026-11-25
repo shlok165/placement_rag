@@ -12,6 +12,15 @@ import { TeamPage } from '@/features/admin/TeamPage';
 import { UsagePage } from '@/features/admin/UsagePage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { AcceptInvitePage, RegisterPage } from '@/features/auth/RegisterPage';
+import { AccountPage } from '@/features/student/AccountPage';
+import { ApplicationsPage } from '@/features/student/ApplicationsPage';
+import { BrowsePage } from '@/features/student/BrowsePage';
+import { HomePage } from '@/features/student/HomePage';
+import { HelpPage, PrivacyPage } from '@/features/student/InfoPages';
+import { JobDetailPage } from '@/features/student/JobDetailPage';
+import { NotificationsPage, SavedPage } from '@/features/student/ListPages';
+import { OnboardingPage } from '@/features/student/OnboardingPage';
+import { StudentShell } from '@/features/student/StudentShell';
 
 export function App() {
   return (
@@ -33,7 +42,17 @@ export function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Route>
-        <Route element={<AppShell portal="student" />}>
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route element={<StudentShell />}>
+          <Route index element={<HomePage />} />
+          <Route path="jobs" element={<BrowsePage />} />
+          <Route path="jobs/:id" element={<JobDetailPage />} />
+          <Route path="applications" element={<ApplicationsPage />} />
+          <Route path="saved" element={<SavedPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="account" element={<AccountPage />} />
+          <Route path="help" element={<HelpPage />} />
+          <Route path="privacy" element={<PrivacyPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

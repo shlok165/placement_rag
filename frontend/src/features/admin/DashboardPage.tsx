@@ -37,7 +37,7 @@ function Panel({
   children: ReactNode;
 }) {
   return (
-    <Card className="p-5">
+    <Card className="mb-6 break-inside-avoid p-5">
       <h2 className="font-semibold">{title}</h2>
       {hint && <p className="text-muted-foreground text-sm">{hint}</p>}
       <div className="mt-3">
@@ -109,7 +109,7 @@ export function DashboardPage() {
                 />
                 <StatTile label="Closing in 7 days" value={d.closing_soon.length} />
               </div>
-              <div className="grid items-start gap-6 lg:grid-cols-2">
+              <div className="gap-6 lg:columns-2">
                 <Panel title="Postings by status">
                   <BarList
                     caption="Postings by status"

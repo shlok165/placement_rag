@@ -19,3 +19,4 @@ backups/
 .idea/
 .vscode/
 *.tsbuildinfo
+e2e/shots/

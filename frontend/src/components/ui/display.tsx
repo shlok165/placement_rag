@@ -14,7 +14,7 @@ export function Card({ className, ...props }: ComponentProps<'div'>) {
 }
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium whitespace-nowrap [&_svg]:size-3.5',
+  'inline-flex items-center gap-1 rounded-full border border-transparent px-2.5 py-0.5 text-xs font-medium whitespace-nowrap [&_svg]:size-3.5',
   {
     variants: {
       tone: {
@@ -24,7 +24,7 @@ const badgeVariants = cva(
         warning: 'bg-warning-subtle text-warning',
         danger: 'bg-danger-subtle text-danger',
         info: 'bg-info-subtle text-info',
-        outline: 'border text-muted-foreground',
+        outline: 'border-border text-muted-foreground',
       },
     },
     defaultVariants: { tone: 'neutral' },

@@ -27,3 +27,10 @@ Hybrid search (pgvector plus rarity-weighted full-text search, RRF), explainable
 156 synthetic postings, 77 labelled cases in three slices, weight sweeps on a development half.
 `make eval` prints the tables and writes `docs/EVALS.md`. Hybrid beats both single methods on
 nDCG@10 and recall@50 but not on hit@1; the reasons are written down there.
+
+## M4 Student portal
+
+Onboarding with progress and skips, resume reading with identifier removal and an exact view of what
+is kept, search with filters, chips, saved and recent searches, explainable match, saves and tracking
+with undo, board and list views, notifications, consent, data export and account deletion. Playwright
+flows cover the coordinator and student journeys in mock mode.

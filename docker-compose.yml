@@ -107,6 +107,24 @@ services:
       dockerfile: frontend/Dockerfile
       target: test
 
+  e2e:
+    image: mcr.microsoft.com/playwright:v1.65.1-noble
+    profiles: ["e2e"]
+    working_dir: /e2e
+    environment:
+      BASE_URL: http://frontend:8080
+      CI: "1"
+    depends_on:
+      frontend:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test"]
+    ipc: host
+    volumes:
+      - ./e2e:/e2e
+      - ./docs/img:/img
+
 volumes:
   pgdata:
   rawfiles:

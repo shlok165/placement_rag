@@ -1,0 +1,6 @@
+{
+  "name": "placement-rag-e2e",
+  "private": true,
+  "license": "MIT",
+  "devDependencies": { "@axe-core/playwright": "4.11.0", "@playwright/test": "1.65.1" }
+}

@@ -1,3 +1,5 @@
+import type { Stage } from './stages';
+
 export type JobStatus = 'draft' | 'pending' | 'indexed' | 'failed' | 'expired' | 'archived';
 export type JobType = 'internship' | 'full-time';
 
@@ -65,3 +67,104 @@ export type AdminJobRow = {
 };
 
 export type Page<T> = { items: T[]; total: number; page: number; page_size: number };
+
+export type ScoreComponent = {
+  key: string;
+  label: string;
+  value: number | null;
+  weight: number;
+  contribution: number;
+  note: string;
+};
+
+export type Breakdown = {
+  score: number;
+  match_percent: number | null;
+  components: ScoreComponent[];
+  matched_skills: string[];
+  missing_skills: string[];
+  preference_checks: { key: string; label: string; met: boolean }[];
+};
+
+export type SearchHit = {
+  job: Job;
+  score: number;
+  breakdown: Breakdown | null;
+  saved: boolean;
+  application_status: string | null;
+};
+
+export type SearchFilters = {
+  job_type?: JobType | null;
+  locations?: string[];
+  remote?: boolean | null;
+  min_stipend?: number | null;
+  closing_within_days?: number | null;
+};
+
+export type SearchResult = Page<SearchHit> & { personalized: boolean; weak_match: boolean };
+
+export type Application = {
+  id: number;
+  status: Stage;
+  notes: string;
+  updated_at: string;
+  job: Job;
+};
+
+export type JobDetail = {
+  job: Job;
+  breakdown: Breakdown | null;
+  saved: boolean;
+  application: Application | null;
+  similar: Job[];
+};
+
+export type Home = {
+  recommended: SearchHit[];
+  closing_soon: SearchHit[];
+  pipeline: Record<string, number>;
+  unread: number;
+  profile_ready: boolean;
+};
+
+export type ParsedProfile = {
+  education: { degree: string; institution: string; year: string }[];
+  skills: string[];
+  projects: { title: string; summary: string }[];
+  experience: { role: string; organisation: string; summary: string }[];
+};
+
+export type Preferences = {
+  roles: string[];
+  locations: string[];
+  remote_ok: boolean;
+  job_types: JobType[];
+  duration: number | null;
+  start_window: string;
+  min_stipend: number | null;
+};
+
+export type Profile = {
+  skills: string[];
+  parsed_profile: ParsedProfile;
+  preferences: Preferences;
+  resume_name: string | null;
+  resume_text_redacted: string | null;
+  updated_at: string | null;
+};
+
+export type ResumeResult = Profile & {
+  redactions: Record<string, number>;
+  parsed_by: 'live' | 'cache' | 'mock' | 'local';
+};
+
+export type AppNotification = {
+  id: number;
+  type: string;
+  payload: { job_id?: number; title?: string; company?: string; deadline?: string | null };
+  read_at: string | null;
+  created_at: string;
+};
+
+export type SavedSearch = { id: number; name: string; query: string; filters: SearchFilters };

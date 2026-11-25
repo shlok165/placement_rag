@@ -488,7 +488,7 @@ def generate_jobs(reference: date = REFERENCE_DATE) -> list[SyntheticJob]:
             is_full_time = "Intern" not in title or rng.random() < family.full_time_share * 0.3
             job_type = "full-time" if is_full_time else "internship"
             if job_type == "full-time":
-                title = title.replace(" Intern", "")
+                title = title.replace(" Intern", " Associate")
             company = f"{rng.choice(COMPANY_STEMS)} {COMPANY_SUFFIX[sector]}"
             remote = family.key in REMOTE_FAMILIES and rng.random() < 0.3
             location = "" if remote and rng.random() < 0.5 else rng.choice(CITIES)
