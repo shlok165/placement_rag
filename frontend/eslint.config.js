@@ -20,6 +20,7 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       'jsx-a11y/label-has-associated-control': 'off',
       'jsx-a11y/no-autofocus': 'off',
+      'jsx-a11y/no-noninteractive-tabindex': ['error', { roles: ['region', 'tabpanel'], tags: [] }],
     },
   },
 );
