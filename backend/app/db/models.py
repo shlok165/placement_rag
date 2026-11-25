@@ -373,6 +373,10 @@ class LlmCache(Base):
     __tablename__ = "llm_cache"
 
     prompt_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Set when the prompt came from one person, so deleting the account clears the answer too.
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
     model: Mapped[str] = mapped_column(String(120))
     response: Mapped[JsonDict]
     created_at: Mapped[datetime] = _created()

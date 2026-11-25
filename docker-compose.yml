@@ -44,6 +44,19 @@ services:
       retries: 30
       start_period: 20s
 
+  worker:
+    <<: *backend
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "find /tmp/worker-heartbeat -mmin -1 | grep -q ."]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 20s
+
   frontend:
     image: placement_rag-frontend
     build:
