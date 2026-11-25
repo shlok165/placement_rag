@@ -186,7 +186,9 @@ def parse_posting(text: str) -> ParsedJob:
         note("skills", skills, "medium")
 
     place = labels.get("location", "")
-    remote = bool(re.search(r"\b(remote|work from home|wfh)\b", place or text, re.IGNORECASE))
+    remote = bool(
+        re.search(r"\b(remote(?!\s+sensing)|work from home|wfh)\b", place or text, re.IGNORECASE)
+    )
     if re.search(r"\b(no remote|not remote|on-?site only)\b", text, re.IGNORECASE):
         remote = False
     places = locations_in_text(place or text)

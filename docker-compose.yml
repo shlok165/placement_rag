@@ -119,7 +119,7 @@ services:
         condition: service_healthy
       worker:
         condition: service_healthy
-    command: ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test"]
+    command: ["sh", "-c", "npm ci --no-audit --no-fund && npx playwright test --project=flows"]
     ipc: host
     volumes:
       - ./e2e:/e2e

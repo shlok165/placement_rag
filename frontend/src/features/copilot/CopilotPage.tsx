@@ -258,7 +258,7 @@ function Conversation({ sessionId, status }: { sessionId: number | null; status:
             {error.text}
           </Alert>
         )}
-        <div ref={end} />
+        <div ref={end} className="scroll-mb-40" />
       </div>
 
       <form
@@ -297,7 +297,7 @@ function Conversation({ sessionId, status }: { sessionId: number | null; status:
           {live ? (
             <Button
               variant="secondary"
-              className="h-12"
+              className="h-12 sm:h-12"
               onClick={() => controller.current?.abort()}
             >
               <Square aria-hidden />
@@ -306,7 +306,7 @@ function Conversation({ sessionId, status }: { sessionId: number | null; status:
           ) : (
             <Button
               type="submit"
-              className="h-12"
+              className="h-12 sm:h-12"
               disabled={!draft.trim() || outOfQuota}
               title={
                 outOfQuota

@@ -35,6 +35,20 @@ test('a student chats, follows a citation and confirms an action', async ({ page
   await expect(page.getByRole('button', { name: /^Remove from saved/ }).first()).toBeVisible();
 });
 
+test('an answer can be stopped while it is being written', async ({ page }) => {
+  await signIn(page, STUDENT);
+  await page.goto('/copilot');
+  const box = page.getByLabel('Message the copilot');
+  await box.fill('What closes within 8 weeks?');
+  await box.press('Enter');
+  await page.getByText('Also closing soon').waitFor();
+  await page.getByRole('button', { name: 'Stop' }).click();
+  await expect(page.getByText('You stopped this answer.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText('You stopped this answer.')).toBeVisible();
+});
+
 test('the copilot refuses what it cannot know', async ({ page }) => {
   await signIn(page, STUDENT);
   await page.goto('/copilot');

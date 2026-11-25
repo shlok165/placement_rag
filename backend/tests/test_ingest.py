@@ -87,6 +87,12 @@ def test_rules_parser_reads_prose() -> None:
     assert "Embedded Systems" in job.skills
 
 
+def test_rules_parser_does_not_read_remote_sensing_as_remote_work() -> None:
+    job = parse_posting("Kiteway is hiring a Remote Sensing Intern in Delhi. Map crop health.")
+    assert (job.title, job.remote) == ("Remote Sensing Intern", False)
+    assert parse_posting("Kiteway is hiring a Data Intern. Remote work is fine.").remote is True
+
+
 def test_rules_parser_marks_missing_fields_low() -> None:
     job = parse_posting("We have an exciting opportunity. Write to us for more details please.")
     assert job.confidence["company"] == "low"

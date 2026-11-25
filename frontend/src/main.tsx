@@ -27,7 +27,7 @@ createRoot(document.getElementById('root')!).render(
           <App />
         </BrowserRouter>
       </TooltipProvider>
-      <Toaster position="bottom-right" theme="system" closeButton duration={6000} />
+      <Toaster position="top-right" offset={72} theme="system" closeButton duration={6000} />
     </QueryClientProvider>
   </StrictMode>,
 );

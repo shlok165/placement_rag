@@ -112,7 +112,7 @@ def _filters(turn: Turn) -> dict[str, Any]:
     places = locations_in_text(turn.text)
     if places:
         filters["locations"] = places
-    if re.search(r"\b(remote|work from home|wfh)\b", turn.lowered) and not re.search(
+    if re.search(r"\b(remote(?!\s+sensing)|work from home|wfh)\b", turn.lowered) and not re.search(
         r"\b(no|not) remote\b", turn.lowered
     ):
         filters["remote"] = True
