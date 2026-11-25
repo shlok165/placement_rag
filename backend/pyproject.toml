@@ -1,0 +1,61 @@
+[project]
+name = "placement-rag-backend"
+version = "1.0.0"
+description = "API, worker and search engine for placement_rag"
+requires-python = ">=3.12,<3.13"
+license = "MIT"
+authors = [{ name = "Shlok Vaidya" }]
+dependencies = [
+  "alembic",
+  "argon2-cffi",
+  "fastapi",
+  "fastembed",
+  "filetype",
+  "httpx",
+  "pgvector",
+  "psycopg[binary]",
+  "pydantic",
+  "pydantic-settings",
+  "pypdf",
+  "python-docx",
+  "python-multipart",
+  "rapidfuzz",
+  "sqlalchemy",
+  "uvicorn[standard]",
+]
+
+[dependency-groups]
+dev = ["mypy", "pytest", "pytest-cov", "ruff", "reportlab"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = ["app/db/migrations/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "T20", "ERA", "C4", "RUF"]
+ignore = ["B008", "RUF012", "RUF001", "RUF002"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+"app/cli.py" = ["T20"]
+"../evals/*" = ["T20", "E501"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+exclude = ["migrations"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = ["live: calls the real LLM provider; skipped unless RUN_LIVE_LLM=1"]
+filterwarnings = ["ignore::DeprecationWarning"]
