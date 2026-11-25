@@ -152,9 +152,12 @@ test('the main student journey works with the keyboard alone', async ({ page }) 
 
   await stage.focus();
   await page.keyboard.press('Enter');
-  await page.keyboard.type('Interview');
+  const withdrawn = page.getByRole('option', { name: 'Withdrawn' });
+  await expect(withdrawn).toBeVisible();
+  await page.keyboard.press('End');
+  await expect(withdrawn).toBeFocused();
   await page.keyboard.press('Enter');
-  await expect(stage).toContainText('Interview');
+  await expect(stage).toContainText('Withdrawn');
 });
 
 test('focus is always visible', async ({ page }) => {

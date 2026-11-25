@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { register, signIn, STUDENT } from './helpers';
+import { freshStudent, register, signIn, STUDENT } from './helpers';
 
 test('a new student onboards, searches, saves and tracks', async ({ page }) => {
   await register(page);
@@ -84,10 +84,7 @@ test('an unusual search explains that matches are weak', async ({ page }) => {
 });
 
 test('a student can delete the account', async ({ page }) => {
-  const email = await register(page);
-  for (let step = 0; step < 3; step++)
-    await page.getByRole('button', { name: 'Skip this step' }).click();
-  await expect(page.getByRole('heading', { name: /^Hello/ })).toBeVisible();
+  const email = await freshStudent(page);
   await page.goto('/account?tab=privacy');
   await page.getByRole('button', { name: 'Delete my account' }).click();
   await page.getByLabel('Password').fill('long-enough-1');

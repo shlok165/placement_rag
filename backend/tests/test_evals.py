@@ -87,11 +87,12 @@ def test_mock_agent_passes_every_scripted_case() -> None:
         ("I don't have any postings from Initech.", True),
         ("There are no postings from that company.", True),
         ("I can only see your own data.", True),
+        ("I can’t tell the stipend.", True),
         ("Initech pays 50,000 a month.", False),
     ],
 )
 def test_honesty_check(answer: str, honest: bool) -> None:
-    assert bool(agent.HONEST.search(answer)) is honest
+    assert agent.is_honest(answer) is honest
 
 
 def test_report_sections_are_replaced(tmp_path: Any) -> None:

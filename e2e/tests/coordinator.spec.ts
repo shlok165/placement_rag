@@ -64,7 +64,7 @@ test('an exact duplicate is refused with a link to the original', async ({ page 
 test('the postings table filters and shows a card layout on phones', async ({ page }) => {
   await signIn(page, COORDINATOR);
   await page.goto('/admin/postings');
-  await page.getByLabel('Search').fill('structural');
+  await page.getByRole('searchbox').fill('structural');
   await expect(page.getByRole('table').getByRole('link').first()).toContainText(/Structural/);
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('table')).toBeHidden();

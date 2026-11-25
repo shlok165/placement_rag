@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { register, signIn, STUDENT } from './helpers';
+import { freshStudent, signIn, STUDENT } from './helpers';
 
 async function ask(page: Page, text: string) {
   const box = page.getByLabel('Message the copilot');
@@ -10,8 +10,10 @@ async function ask(page: Page, text: string) {
 }
 
 test('a student chats, follows a citation and confirms an action', async ({ page }) => {
-  await signIn(page, STUDENT);
+  await freshStudent(page);
   await page.getByRole('link', { name: 'Copilot' }).click();
+  await page.getByLabel('I agree to this use of my data').click();
+  await page.getByRole('button', { name: 'Turn on AI features' }).click();
   await ask(page, 'Find backend internships');
   const sources = page.getByRole('list').filter({ has: page.locator('a[href^="/jobs/"]') });
   await expect(sources.first()).toBeVisible();
@@ -58,10 +60,7 @@ test('a conversation survives reload and can be deleted', async ({ page }) => {
 });
 
 test('new students agree to data use before the first chat', async ({ page }) => {
-  await register(page);
-  for (let step = 0; step < 3; step++)
-    await page.getByRole('button', { name: 'Skip this step' }).click();
-  await expect(page.getByRole('heading', { name: /^Hello/ })).toBeVisible();
+  await freshStudent(page);
   await page.goto('/copilot');
   await expect(page.getByLabel('Message the copilot')).toHaveCount(0);
   await page.getByLabel('I agree to this use of my data').click();

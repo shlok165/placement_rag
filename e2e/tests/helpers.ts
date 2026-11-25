@@ -23,6 +23,15 @@ export function unique(): string {
   return Array.from({ length: 8 }, () => letters[Math.floor(Math.random() * 26)]).join('');
 }
 
+/** Registers a student and skips onboarding. */
+export async function freshStudent(page: Page) {
+  const email = await register(page);
+  for (let step = 0; step < 3; step++)
+    await page.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(page.getByRole('heading', { name: /^Hello/ })).toBeVisible();
+  return email;
+}
+
 export async function register(page: Page) {
   const email = `student-${unique()}@example.com`;
   await skipTour(page);

@@ -42,3 +42,9 @@ is shown, streamed answers with a stop control, confirm cards for every change, 
 consent per fact, deterministic session summaries, daily quotas. The LLM client enforces caching,
 caps, retries and logging. Agent, grounding and isolation tests pass in mock mode and the usage page
 shows zero live calls.
+
+## M6 Agent evals and live validation
+
+28 tool-use cases, 10 refusal cases, structured-output and grounding checks, a capped judge, and an
+eval workspace for coordinators. The live smoke test passed (at most 5 calls). One live eval run used
+88 of 150 allowed calls; its results and one grading fix are written down in `docs/EVALS.md`.
