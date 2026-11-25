@@ -35,6 +35,8 @@ class ToolContext:
     # Write actions waiting for the student's confirmation.
     proposals: list[dict[str, Any]] = field(default_factory=list)
     trace: list[s.ToolTrace] = field(default_factory=list)
+    # Raw tool output, kept for evals.
+    outputs: list[str] = field(default_factory=list)
     _profile: Profile | None = None
 
     @property
@@ -371,7 +373,9 @@ def execute(ctx: ToolContext, name: str, raw_arguments: str) -> tuple[bool, str]
         if isinstance(result.get("results"), list):
             summary = f"{len(result['results'])} results"
         ctx.trace.append(s.ToolTrace(name=name, arguments=arguments, ok=True, summary=summary))
-        return True, json.dumps(result, separators=(",", ":"), default=str, ensure_ascii=False)
+        content = json.dumps(result, separators=(",", ":"), default=str, ensure_ascii=False)
+        ctx.outputs.append(content)
+        return True, content
     ctx.trace.append(
         s.ToolTrace(name=name, arguments=arguments, ok=False, summary=outcome["error"][:200])
     )

@@ -187,7 +187,7 @@ _NOT_COMPANIES = {
 
 def _named_company(text: str) -> str | None:
     pattern = (
-        r"\b(?:at|from|by|does|is|has|with)\s+((?:[A-Z][\w&.-]+)(?:\s+[A-Z][\w&.-]+){0,2})"
+        r"\b(?:(?i:at|from|by|does|is|has|with))\s+((?:[A-Z][\w&.-]+)(?:\s+[A-Z][\w&.-]+){0,2})"
         r"|\b([A-Z][\w&.-]+(?:\s+[A-Z][\w&.-]+)?)(?:'s)?\s+(?:internships?|jobs?|openings?|roles?|hiring)"
     )
     for match in re.finditer(pattern, text):

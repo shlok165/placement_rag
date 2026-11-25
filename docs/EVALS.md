@@ -135,3 +135,44 @@ CI runs `python -m evals.retrieval --check` and fails when hit@5 of the full pip
 | relevance 1.5, skills 0.2, preferences 0.3 | 0.769 | 0.846 | 0.897 | 0.831 | 0.741 | 0.949 |
 | relevance 1.5, skills 0.3, preferences 0.2 | 0.769 | 0.846 | 0.897 | 0.827 | 0.743 | 0.949 |
 <!-- retrieval:end -->
+
+## Agent results
+
+Three suites run over the same synthetic corpus: tool use, refusals and answer quality.
+
+- **Tool use**: the right tool was called, and its arguments were sensible.
+- **Refusals**: questions the data cannot answer (selection chances, unknown companies, other
+  students' data, prompt injection) get an honest reply with no invented content.
+- **Grounding**: every posting id in the shown answer came from a tool result in that turn. The
+  application enforces this, so the interesting number is how often the first attempt needed repair.
+- **Structured output**: share of turns where the model produced a valid `final_answer`.
+- **Judge**: a model grades relevance and helpfulness from 1 to 5 with a fixed rubric at
+  temperature 0. The judge is the same model as the copilot unless `LLM_JUDGE_MODEL` is set, so
+  its scores flatter it. Read them as a smoke alarm, not a quality claim.
+
+### Mock mode
+
+These numbers test the plumbing. The mock agent is rule based and was written alongside the cases,
+so a perfect score here says nothing about a model.
+
+<!-- agent-mock:start -->
+| Measure | Result |
+|---|---|
+| Right tool | 28 of 28 (100%) |
+| Right tool and arguments | 28 of 28 (100%) |
+| Honest refusals | 10 of 10 (100%) |
+| Refusals: selection chances | 3 of 3 |
+| Refusals: unknown company | 3 of 3 |
+| Refusals: other students | 3 of 3 |
+| Refusals: prompt injection | 1 of 1 |
+| Answers shown with an ungrounded posting | 0 of 38 |
+| First attempts that needed repair | 0 of 38 |
+| Valid structured output | 38 of 38 (100%) |
+| Model calls per turn (mean) | 1.82 |
+| Tokens per turn (mean) | 711 |
+<!-- agent-mock:end -->
+
+### Live mode
+
+<!-- agent-live:start -->
+<!-- agent-live:end -->

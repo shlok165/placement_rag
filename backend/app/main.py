@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api import (
+    admin_evals,
     admin_insights,
     admin_jobs,
     admin_team,
@@ -125,6 +126,7 @@ def create_app() -> FastAPI:
         admin_team,
         admin_jobs,
         admin_insights,
+        admin_evals,
         search,
         profile,
         student,

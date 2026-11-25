@@ -19,6 +19,7 @@ from app.ingest.indexing import index_job
 from app.ingest.parser import parse_job_text
 from app.ingest.service import EDITABLE, publish_problems, today
 from app.llm.client import get_llm
+from evals.portal import run_retrieval_eval
 
 logger = logging.getLogger("app.worker")
 
@@ -85,11 +86,16 @@ def run_reminders(db: Session, _: IngestTask) -> None:
     db.commit()
 
 
+def run_eval(db: Session, task: IngestTask) -> None:
+    run_retrieval_eval(db, task.payload["run_id"])
+
+
 HANDLERS = {
     "parse": run_parse,
     "index": run_index,
     "expire": run_expire,
     "reminders": run_reminders,
+    "eval": run_eval,
 }
 
 

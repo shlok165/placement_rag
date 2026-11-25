@@ -27,7 +27,14 @@ seed: ## Load demo accounts and synthetic postings
 
 eval: ## Everything that is free: retrieval and offline agent evals
 	$(COMPOSE) build test
-	$(TEST) sh -c "alembic upgrade head && python -m evals.retrieval"
+	$(TEST) sh -c "alembic upgrade head && python -m evals.retrieval && python -m evals.agent"
+
+eval-live: ## Capped live agent eval. Prints the expected calls first
+	$(COMPOSE) build test
+	TEST_LLM_MODE=live $(TEST) sh -c "alembic upgrade head && python -m evals.agent --live"
+
+e2e: ## Browser tests against the running stack
+	$(COMPOSE) --profile e2e run --rm e2e
 
 backup: ## Dump the database and raw files into ./backups
 	sh scripts/backup.sh
