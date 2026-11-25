@@ -32,14 +32,14 @@ export function FitPanel({ breakdown }: { breakdown: Breakdown | null }) {
         Worked out from your profile with a fixed formula. It compares fit only and does not predict
         selection.
       </p>
-      <dl className="mt-4 flex flex-col gap-3">
+      <ul className="mt-4 flex flex-col gap-3">
         {parts.map((part) => (
-          <div key={part.key}>
+          <li key={part.key}>
             <div className="flex justify-between gap-3 text-sm">
-              <dt className="font-medium">{part.label}</dt>
-              <dd className="tabular">
+              <span className="font-medium">{part.label}</span>
+              <span className="tabular">
                 {part.value === null ? 'Not counted' : `${Math.round(part.value * 100)}%`}
-              </dd>
+              </span>
             </div>
             <div className="bg-secondary mt-1 h-1.5 overflow-hidden rounded-full" aria-hidden>
               <div
@@ -50,9 +50,9 @@ export function FitPanel({ breakdown }: { breakdown: Breakdown | null }) {
             <p className="text-muted-foreground mt-1 text-xs">
               {part.note}. Weight {part.weight.toFixed(2)}.
             </p>
-          </div>
+          </li>
         ))}
-      </dl>
+      </ul>
       {breakdown.preference_checks.length > 0 && (
         <>
           <h3 className="mt-5 text-sm font-medium">Your preferences</h3>
