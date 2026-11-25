@@ -99,6 +99,14 @@ services:
       - ./evals:/srv/evals
       - ./docs:/srv/docs
 
+  frontend-test:
+    image: placement_rag-frontend-test
+    profiles: ["test"]
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: test
+
 volumes:
   pgdata:
   rawfiles:

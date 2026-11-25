@@ -20,3 +20,10 @@ container, rules-based parsing in mock mode, review screen with low-confidence f
 fuzzy duplicate checks, nightly expiry, alerts, change history, undo. The LLM client (cache, budget
 caps, retries, logging) is the only module that talks to the provider. Verified: a posting reaches
 `indexed` with embedding and `tsv` set, failures show their reason and can be retried.
+
+## M3 Retrieval and evals
+
+Hybrid search (pgvector plus rarity-weighted full-text search, RRF), explainable personal re-rank,
+156 synthetic postings, 77 labelled cases in three slices, weight sweeps on a development half.
+`make eval` prints the tables and writes `docs/EVALS.md`. Hybrid beats both single methods on
+nDCG@10 and recall@50 but not on hit@1; the reasons are written down there.

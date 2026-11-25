@@ -29,11 +29,9 @@ from app.db.models import (
 from app.ingest.service import today
 from app.llm.quota import budget_status, day_start
 from app.schemas.auth import Email
+from app.search.config import get_search_config
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-# Below this similarity the best result is unlikely to be what the student meant.
-WEAK_SIMILARITY = 0.58
 
 
 def _fortnight_ago() -> datetime:
@@ -63,7 +61,7 @@ def dashboard(_: Coordinator, db: Db) -> dict[str, Any]:
         .where(
             SearchEvent.created_at > month_ago,
             SearchEvent.query != "",
-            (SearchEvent.result_count == 0) | (SearchEvent.top_similarity < WEAK_SIMILARITY),
+            (SearchEvent.result_count == 0) | (SearchEvent.top_similarity < get_search_config().weak_similarity),
         )
         .group_by(asked)
         .order_by(func.count().desc())

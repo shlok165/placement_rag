@@ -1,0 +1,27 @@
+# Every retrieval and ranking weight lives here. Evals override these values to sweep them.
+
+# Candidates taken from each retriever before fusion.
+candidates = 50
+# Vector matches below this cosine similarity are treated as noise.
+min_similarity = 0.45
+# A best match below this counts as "nothing close" in the UI and the dashboard.
+weak_similarity = 0.58
+
+[fusion]
+# rrf: reciprocal rank fusion. weighted: sum of scaled scores.
+method = "rrf"
+rrf_k = 10
+semantic_weight = 1.0
+keyword_weight = 0.5
+
+[rerank]
+relevance = 0.45
+skills = 0.20
+preferences = 0.30
+profile = 0.10
+# Must stay below every other weight, so urgency can only break near-ties.
+urgency = 0.02
+urgency_window_days = 14
+# Cosine similarity range that maps to 0..1 for the profile component.
+similarity_floor = 0.50
+similarity_ceiling = 0.85

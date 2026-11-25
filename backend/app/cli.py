@@ -22,6 +22,7 @@ def bootstrap() -> None:
         return
     with get_sessionmaker()() as db:
         seed.seed_users(db)
+        seed.seed_jobs(db)
 
 
 def create_coordinator(email: str, name: str) -> int:

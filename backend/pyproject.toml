@@ -42,7 +42,7 @@ ignore = ["B008", "RUF012", "RUF001", "RUF002"]
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["E501", "E402"]
 "app/cli.py" = ["T20"]
-"../evals/*" = ["T20", "E501"]
+"evals/*" = ["T20"]
 
 [tool.mypy]
 python_version = "3.12"

@@ -9,22 +9,10 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.models import Application, Job, JobStatus, Notification, SavedJob, StudentProfile, User
 from app.ingest.service import today
-from app.search.matching import JobFacts, Preferences, passes_hard_filters
+from app.search.matching import Preferences, passes_hard_filters
+from app.search.ranking import job_facts
 
 REMINDER_DAYS = 3
-
-
-def job_facts(job: Job) -> JobFacts:
-    return JobFacts(
-        title=job.title,
-        skills=job.skills,
-        location=job.location,
-        remote=job.remote,
-        job_type=job.job_type,
-        stipend_min=job.stipend_min,
-        stipend_max=job.stipend_max,
-        duration_months=job.duration_months,
-    )
 
 
 def _payload(job: Job) -> dict[str, object]:

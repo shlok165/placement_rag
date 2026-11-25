@@ -39,6 +39,8 @@ jobs:
         run: docker compose run --rm --no-deps test sh -c "ruff check . && ruff format --check . && mypy app"
       - name: Tests
         run: docker compose run --rm test pytest
+      - name: Retrieval evals
+        run: docker compose run --rm test python -m evals.retrieval --check
 
   images:
     runs-on: ubuntu-latest
