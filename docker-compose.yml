@@ -47,7 +47,9 @@ services:
   frontend:
     image: placement_rag-frontend
     build:
-      context: frontend
+      context: .
+      dockerfile: frontend/Dockerfile
+      target: runtime
     ports:
       - "${APP_PORT:-8080}:8080"
     depends_on:
@@ -63,19 +65,24 @@ services:
     <<: *backend
     image: placement_rag-test
     profiles: ["test"]
+    user: root
     build:
       context: .
       dockerfile: backend/Dockerfile
       target: test
     environment:
       <<: *backend-env
-      LLM_MODE: mock
+      LLM_MODE: ${TEST_LLM_MODE:-mock}
       RUN_LIVE_LLM: ${RUN_LIVE_LLM:-0}
+      MYPY_CACHE_DIR: /tmp/mypy
+      RUFF_CACHE_DIR: /tmp/ruff
     depends_on:
       db:
         condition: service_healthy
     volumes:
-      - ./backend:/srv/backend-src
+      - ./backend/app:/srv/app
+      - ./backend/tests:/srv/tests
+      - ./backend/pyproject.toml:/srv/pyproject.toml
       - ./evals:/srv/evals
       - ./docs:/srv/docs
 
