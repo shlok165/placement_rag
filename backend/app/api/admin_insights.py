@@ -61,7 +61,8 @@ def dashboard(_: Coordinator, db: Db) -> dict[str, Any]:
         .where(
             SearchEvent.created_at > month_ago,
             SearchEvent.query != "",
-            (SearchEvent.result_count == 0) | (SearchEvent.top_similarity < get_search_config().weak_similarity),
+            (SearchEvent.result_count == 0)
+            | (SearchEvent.top_similarity < get_search_config().weak_similarity),
         )
         .group_by(asked)
         .order_by(func.count().desc())
