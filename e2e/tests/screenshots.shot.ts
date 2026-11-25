@@ -18,10 +18,10 @@ test('student pages', async ({ page }) => {
   await signIn(page, STUDENT);
   await shot(page, '/', 'student-home');
   await shot(page, '/jobs?q=build+reliable+APIs+in+python', 'student-search');
-  await page.getByRole('region', { name: 'Results' }).getByRole('heading').first().getByRole('link').click();
+  await page.getByRole('region', { name: 'Results' }).getByRole('heading', { level: 3 }).first().getByRole('link').click();
   await page.waitForLoadState('networkidle');
   await page.screenshot({ path: `${OUT}/student-job.png` });
-  await page.request.get('/api/auth/me');
+
   await shot(page, '/applications', 'student-applications');
   await shot(page, '/account', 'student-account');
 });

@@ -168,3 +168,36 @@ export type AppNotification = {
 };
 
 export type SavedSearch = { id: number; name: string; query: string; filters: SearchFilters };
+
+export type Citation = { job_id: number; title: string; company: string };
+
+export type PendingAction = {
+  id: number;
+  kind: 'save_job' | 'track_application' | 'update_preferences' | 'remember';
+  label: string;
+  payload: Record<string, unknown>;
+  status: 'pending' | 'confirmed' | 'rejected';
+};
+
+export type ChatMessage = {
+  id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  citations: Citation[];
+  suggested_followups: string[];
+  pending_actions: PendingAction[];
+  notice: string | null;
+  stopped: boolean;
+  feedback: 'up' | 'down' | null;
+  created_at: string;
+};
+
+export type ChatSession = { id: number; title: string; updated_at: string };
+
+export type ChatStatus = {
+  mode: 'mock' | 'live';
+  consent: boolean;
+  quota: { limit: number; used: number; remaining: number };
+};
+
+export type MemoryFact = { id: number; kind: string; text: string; created_at: string };

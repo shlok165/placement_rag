@@ -12,6 +12,8 @@ import { TeamPage } from '@/features/admin/TeamPage';
 import { UsagePage } from '@/features/admin/UsagePage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { AcceptInvitePage, RegisterPage } from '@/features/auth/RegisterPage';
+import { CopilotPage } from '@/features/copilot/CopilotPage';
+import { MemoryPage } from '@/features/copilot/MemoryPage';
 import { AccountPage } from '@/features/student/AccountPage';
 import { ApplicationsPage } from '@/features/student/ApplicationsPage';
 import { BrowsePage } from '@/features/student/BrowsePage';
@@ -47,6 +49,9 @@ export function App() {
           <Route index element={<HomePage />} />
           <Route path="jobs" element={<BrowsePage />} />
           <Route path="jobs/:id" element={<JobDetailPage />} />
+          <Route path="copilot" element={<CopilotPage />} />
+          <Route path="copilot/:id" element={<CopilotPage />} />
+          <Route path="memory" element={<MemoryPage />} />
           <Route path="applications" element={<ApplicationsPage />} />
           <Route path="saved" element={<SavedPage />} />
           <Route path="notifications" element={<NotificationsPage />} />

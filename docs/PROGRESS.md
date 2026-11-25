@@ -34,3 +34,11 @@ Onboarding with progress and skips, resume reading with identifier removal and a
 is kept, search with filters, chips, saved and recent searches, explainable match, saves and tracking
 with undo, board and list views, notifications, consent, data export and account deletion. Playwright
 flows cover the coordinator and student journeys in mock mode.
+
+## M5 Copilot
+
+Hand-written agent loop over eleven validated tools, grounding and prediction checks before any text
+is shown, streamed answers with a stop control, confirm cards for every change, long-term memory with
+consent per fact, deterministic session summaries, daily quotas. The LLM client enforces caching,
+caps, retries and logging. Agent, grounding and isolation tests pass in mock mode and the usage page
+shows zero live calls.
