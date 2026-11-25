@@ -37,11 +37,11 @@ class Metrics:
                         f'http_request_seconds_bucket{{route="{route}",le="{bucket}"}} {value}'
                     )
                 lines.append(f'http_request_seconds_bucket{{route="{route}",le="+Inf"}} {count}')
-                total = self._latency_sum[route]
-                lines.append(f'http_request_seconds_sum{{route="{route}"}} {total:.4f}')
+                seconds = self._latency_sum[route]
+                lines.append(f'http_request_seconds_sum{{route="{route}"}} {seconds:.4f}')
                 lines.append(f'http_request_seconds_count{{route="{route}"}} {count}')
-        for name, value in gauges.items():
-            lines += [f"# TYPE {name} gauge", f"{name} {value}"]
+        for name, gauge in gauges.items():
+            lines += [f"# TYPE {name} gauge", f"{name} {gauge}"]
         return "\n".join(lines) + "\n"
 
 

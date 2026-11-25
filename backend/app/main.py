@@ -11,7 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api import health
+from app.api import admin_team, auth, health
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.core.logging import configure_logging, request_id_var
@@ -109,7 +109,8 @@ def create_app() -> FastAPI:
             500, "server_error", "Something went wrong on our side. Please try again in a moment."
         )
 
-    app.include_router(health.router)
+    for module in (health, auth, admin_team):
+        app.include_router(module.router)
     return app
 
 

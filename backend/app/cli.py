@@ -1,29 +1,57 @@
 """Operational commands: `python -m app.cli <command>`."""
 
 import argparse
+import getpass
 import logging
+import sys
 
+from sqlalchemy import select
+
+from app import seed
 from app.core.config import get_settings
 from app.core.logging import configure_logging
+from app.db.models import User
+from app.db.session import get_sessionmaker
 
 logger = logging.getLogger("app.cli")
 
 
 def bootstrap() -> None:
     """Run once at start-up, after migrations."""
-    if get_settings().seed_demo:
-        logger.info("demo seed requested")
+    if not get_settings().seed_demo:
+        return
+    with get_sessionmaker()() as db:
+        seed.seed_users(db)
 
 
-def main() -> None:
+def create_coordinator(email: str, name: str) -> int:
+    password = getpass.getpass("Password (10+ characters): ")
+    if len(password) < 10:
+        print("Use at least 10 characters.", file=sys.stderr)
+        return 1
+    with get_sessionmaker()() as db:
+        if db.scalar(select(User.id).where(User.email == email.lower())):
+            print("An account with this email already exists.", file=sys.stderr)
+            return 1
+        seed.create_coordinator(db, email, name, password)
+    print("Coordinator created.")
+    return 0
+
+
+def main() -> int:
     configure_logging()
     parser = argparse.ArgumentParser(prog="app.cli")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("bootstrap", help="seed demo data when SEED_DEMO=1")
+    creator = commands.add_parser("create-coordinator", help="create a coordinator account")
+    creator.add_argument("email")
+    creator.add_argument("name")
     args = parser.parse_args()
-    if args.command == "bootstrap":
-        bootstrap()
+    if args.command == "create-coordinator":
+        return create_coordinator(args.email, args.name)
+    bootstrap()
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
