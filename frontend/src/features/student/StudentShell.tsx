@@ -3,6 +3,7 @@ import { Bell, Megaphone, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { AppShell } from '@/app/AppShell';
+import { Tour } from '@/app/Tour';
 import { Button } from '@/components/ui/button';
 import { Tooltip } from '@/components/ui/overlay';
 import { api } from '@/lib/api';
@@ -64,5 +65,7 @@ function Banner() {
 }
 
 export function StudentShell() {
-  return <AppShell portal="student" topbar={<UnreadBell />} banner={<Banner />} />;
+  return (
+    <AppShell portal="student" topbar={<UnreadBell />} banner={<Banner />} extras={<Tour />} />
+  );
 }

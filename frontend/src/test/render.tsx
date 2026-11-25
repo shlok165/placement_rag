@@ -26,7 +26,8 @@ export function mockApi(routes: MockRoutes) {
   return calls;
 }
 
-export function renderPage(ui: ReactNode, path = '/') {
+export function renderPage(ui: ReactNode, path = '/', { tour = false } = {}) {
+  if (!tour) localStorage.setItem('tour-seen', '1');
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

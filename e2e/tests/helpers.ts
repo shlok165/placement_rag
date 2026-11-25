@@ -4,7 +4,12 @@ export const PASSWORD = 'demo-pass-2026';
 export const COORDINATOR = 'coordinator@example.com';
 export const STUDENT = 'asha@example.com';
 
+async function skipTour(page: Page) {
+  await page.addInitScript(() => localStorage.setItem('tour-seen', '1'));
+}
+
 export async function signIn(page: Page, email: string) {
+  await skipTour(page);
   await page.goto('/login');
   await page.getByLabel('Institute email').fill(email);
   await page.getByLabel('Password').fill(PASSWORD);
@@ -20,6 +25,7 @@ export function unique(): string {
 
 export async function register(page: Page) {
   const email = `student-${unique()}@example.com`;
+  await skipTour(page);
   await page.goto('/register');
   await page.getByLabel('Full name').fill('Synthetic Student');
   await page.getByLabel('Institute email').fill(email);

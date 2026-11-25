@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { OPEN_TOUR } from '@/app/Tour';
+import { Button } from '@/components/ui/button';
 import { Card, PageHeader } from '@/components/ui/display';
 import { useTitle } from '@/lib/title';
 
@@ -104,6 +106,16 @@ export function HelpPage() {
             <kbd>Ctrl</kbd> or <kbd>⌘</kbd> + <kbd>K</kbd> opens the command palette. <kbd>/</kbd>{' '}
             moves to the search box. <kbd>Esc</kbd> closes dialogs.
           </p>
+        </Section>
+        <Section title="Tour">
+          <p>A short introduction to the main features.</p>
+          <Button
+            variant="secondary"
+            className="self-start"
+            onClick={() => window.dispatchEvent(new Event(OPEN_TOUR))}
+          >
+            Open the tour
+          </Button>
         </Section>
         <Section title="Feedback">
           <p>

@@ -2,6 +2,8 @@ import { LogOut, Menu as MenuIcon, Monitor, Moon, Repeat, Sun, UserRound } from 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
 import { adminNav, adminSecondaryNav, studentNav, studentSecondaryNav, type NavItem } from './nav';
+import { CommandPalette } from './CommandPalette';
+import { FeedbackWidget } from './FeedbackWidget';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
 import {
@@ -141,15 +143,18 @@ export function AppShell({
       >
         Skip to content
       </a>
-      <div className="bg-card sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r p-4 lg:flex">
+      <nav
+        aria-label="Main"
+        className="bg-card sticky top-0 hidden h-dvh flex-col overflow-y-auto border-r p-4 lg:flex"
+      >
         <Link to={portal === 'admin' ? '/admin' : '/'} className="mb-6 rounded-md px-1">
           <Logo />
         </Link>
         {portal === 'admin' && (
           <p className="text-muted-foreground mb-3 px-3 text-xs font-medium">Coordinator portal</p>
         )}
-        <nav aria-label="Main">{nav()}</nav>
-      </div>
+        {nav()}
+      </nav>
       <div className="flex min-w-0 flex-col">
         <header className="bg-card/95 sticky top-0 z-30 flex h-14 items-center gap-2 border-b px-3 backdrop-blur sm:px-6">
           <Button
@@ -168,6 +173,7 @@ export function AppShell({
           >
             <Logo compact />
           </Link>
+          <CommandPalette portal={portal} />
           <div className="ml-auto flex items-center gap-1">
             {topbar}
             <UserMenu portal={portal} />
@@ -182,6 +188,7 @@ export function AppShell({
         >
           <Outlet />
         </main>
+        <FeedbackWidget />
         {extras}
       </div>
       <Sheet open={menuOpen} onOpenChange={setMenuOpen} title="Menu">

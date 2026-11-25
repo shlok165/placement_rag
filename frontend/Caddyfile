@@ -2,6 +2,11 @@
 	admin off
 }
 
+http://127.0.0.1:2020 {
+	bind 127.0.0.1
+	respond "ok"
+}
+
 {$SITE_ADDRESS::8080} {
 	encode zstd gzip
 

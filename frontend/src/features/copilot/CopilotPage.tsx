@@ -374,7 +374,7 @@ export function CopilotPage() {
   return (
     <div className="lg:grid lg:grid-cols-[1fr_15rem] lg:gap-8">
       <div className="min-w-0">
-        <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-semibold">Copilot</h1>
           <div className="flex gap-2">
             <Button variant="ghost" className="lg:hidden" onClick={() => setHistoryOpen(true)}>

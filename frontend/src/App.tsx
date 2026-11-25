@@ -5,6 +5,7 @@ import { RequireCoordinator, RequireUser } from './app/guards';
 import { AddPostingPage } from '@/features/admin/AddPostingPage';
 import { AnnouncementsPage } from '@/features/admin/AnnouncementsPage';
 import { DashboardPage } from '@/features/admin/DashboardPage';
+import { EvalsPage } from '@/features/admin/EvalsPage';
 import { PostingDetailPage } from '@/features/admin/PostingDetailPage';
 import { PostingsPage } from '@/features/admin/PostingsPage';
 import { StudentsPage } from '@/features/admin/StudentsPage';
@@ -23,6 +24,7 @@ import { JobDetailPage } from '@/features/student/JobDetailPage';
 import { NotificationsPage, SavedPage } from '@/features/student/ListPages';
 import { OnboardingPage } from '@/features/student/OnboardingPage';
 import { StudentShell } from '@/features/student/StudentShell';
+import { SurveyPage } from '@/features/student/SurveyPage';
 
 export function App() {
   return (
@@ -38,6 +40,7 @@ export function App() {
             <Route path="postings/new" element={<AddPostingPage />} />
             <Route path="postings/:id" element={<PostingDetailPage />} />
             <Route path="students" element={<StudentsPage />} />
+            <Route path="evals" element={<EvalsPage />} />
             <Route path="usage" element={<UsagePage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="team" element={<TeamPage />} />
@@ -56,6 +59,7 @@ export function App() {
           <Route path="saved" element={<SavedPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="account" element={<AccountPage />} />
+          <Route path="survey" element={<SurveyPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="privacy" element={<PrivacyPage />} />
           <Route path="*" element={<NotFoundPage />} />

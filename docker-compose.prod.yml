@@ -1,0 +1,60 @@
+# Production override:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
+# Needs SITE_ADDRESS (a public hostname) and a strong POSTGRES_PASSWORD in .env.
+
+services:
+  db:
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  backend:
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+    environment: &prod-env
+      COOKIE_SECURE: "1"
+      SEED_DEMO: "0"
+      DEV_EMAIL_DOMAINS: ""
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD in .env}
+
+  worker:
+    restart: unless-stopped
+    mem_limit: 1g
+    cpus: 1.0
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    logging: *logging
+    environment: *prod-env
+
+  frontend:
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    logging: *logging
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?Set SITE_ADDRESS to the public hostname in .env}
+    ports: !override
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddydata:/data
+      - caddyconfig:/config
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2020/"]
+
+volumes:
+  caddydata:
+  caddyconfig:
