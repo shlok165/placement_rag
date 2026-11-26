@@ -14,7 +14,7 @@ import { Dialog, Sheet } from '@/components/ui/overlay';
 import { api, messageOf } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { useTitle } from '@/lib/title';
-import type { SavedSearch, SearchFilters, SearchResult } from '@/lib/types';
+import type { ParsedQuery, SavedSearch, SearchFilters, SearchResult } from '@/lib/types';
 import { locationOptions } from '@/lib/vocabulary';
 
 const PAGE_SIZE = 12;
@@ -24,7 +24,7 @@ function readFilters(params: URLSearchParams): SearchFilters {
   return {
     job_type: (params.get('type') as SearchFilters['job_type']) || null,
     locations: params.getAll('loc'),
-    remote: params.get('remote') === '1' ? true : null,
+    remote: params.get('remote') === '1' ? true : params.get('remote') === '0' ? false : null,
     min_stipend: Number(params.get('pay')) || null,
     closing_within_days: Number(params.get('days')) || null,
   };
@@ -34,7 +34,8 @@ function writeFilters(params: URLSearchParams, filters: SearchFilters) {
   FILTER_KEYS.forEach((key) => params.delete(key));
   if (filters.job_type) params.set('type', filters.job_type);
   filters.locations?.forEach((loc) => params.append('loc', loc));
-  if (filters.remote) params.set('remote', '1');
+  if (filters.remote === true) params.set('remote', '1');
+  if (filters.remote === false) params.set('remote', '0');
   if (filters.min_stipend) params.set('pay', String(filters.min_stipend));
   if (filters.closing_within_days) params.set('days', String(filters.closing_within_days));
 }
@@ -128,6 +129,8 @@ function filterChips(filters: SearchFilters): { label: string; without: SearchFi
       without: { ...filters, job_type: null },
     });
   if (filters.remote) chips.push({ label: 'Remote', without: { ...filters, remote: null } });
+  if (filters.remote === false)
+    chips.push({ label: 'Not remote', without: { ...filters, remote: null } });
   if (filters.min_stipend)
     chips.push({
       label: `₹${filters.min_stipend.toLocaleString('en-IN')} or more`,
@@ -163,6 +166,8 @@ export function BrowsePage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState('');
+  // Filters read from the typed words, shown for a check before they are applied.
+  const [pending, setPending] = useState<ParsedQuery | null>(null);
 
   // Follow changes that come from outside the box: back button, saved or recent searches.
   if (query !== lastQuery) {
@@ -217,9 +222,54 @@ export function BrowsePage() {
   });
 
   const chips = filterChips(filters);
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    runSearch(text);
+    const clean = text.trim();
+    setPending(null);
+    if (clean) {
+      try {
+        const parsed = await api<ParsedQuery>('/search/parse', {
+          method: 'POST',
+          body: { text: clean },
+        });
+        if (parsed.chips.length) {
+          setPending(parsed);
+          return;
+        }
+      } catch {
+        // Reading filters is a convenience; the words still go to search.
+      }
+    }
+    runSearch(clean);
+  };
+  const applyPending = (parsed: ParsedQuery) => {
+    const next: SearchFilters = { ...filters, locations: [...(filters.locations ?? [])] };
+    for (const chip of parsed.chips) {
+      if (chip.key === 'locations') {
+        if (!next.locations!.includes(chip.value)) next.locations!.push(chip.value);
+      } else {
+        Object.assign(next, { [chip.key]: parsed.filters[chip.key] });
+      }
+    }
+    const clean = parsed.query.trim();
+    setPending(null);
+    setText(clean);
+    if (clean) setRecent(addRecent(clean));
+    change((p) => {
+      if (clean) p.set('q', clean);
+      else p.delete('q');
+      writeFilters(p, next);
+    });
+  };
+  const dropChip = (parsed: ParsedQuery, index: number) => {
+    const chip = parsed.chips[index];
+    const chipsLeft = parsed.chips.filter((_, i) => i !== index);
+    const words = chip.key === 'locations' ? chip.label : '';
+    setPending({
+      ...parsed,
+      chips: chipsLeft,
+      query: words ? `${parsed.query} ${words}`.trim() : parsed.query,
+    });
   };
 
   return (
@@ -246,6 +296,60 @@ export function BrowsePage() {
           Search
         </Button>
       </form>
+
+      <div aria-live="polite">
+        {pending && (
+          <section
+            aria-labelledby="understood"
+            className="bg-card mt-3 flex flex-col gap-3 rounded-lg border p-4"
+          >
+            <h2 id="understood" className="text-sm font-semibold">
+              Use these as filters?
+            </h2>
+            <ul className="flex flex-wrap gap-2">
+              {pending.chips.map((chip, index) => (
+                <li key={`${chip.key}-${chip.value}`}>
+                  <span className="bg-secondary flex min-h-9 items-center gap-1 rounded-full pr-1 pl-3 text-sm">
+                    {chip.label}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${chip.label}`}
+                      className="hover:bg-muted flex size-7 items-center justify-center rounded-full"
+                      onClick={() => dropChip(pending, index)}
+                    >
+                      <X className="size-3.5" aria-hidden />
+                    </button>
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-muted-foreground text-sm">
+              {pending.query ? (
+                <>
+                  Search words: <span className="text-foreground">“{pending.query}”</span>
+                </>
+              ) : (
+                'No search words left: postings are filtered only.'
+              )}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => applyPending(pending)}>
+                Search with {pending.chips.length ? 'these filters' : 'these words'}
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setPending(null);
+                  runSearch(text);
+                }}
+              >
+                Search my words as typed
+              </Button>
+            </div>
+          </section>
+        )}
+      </div>
 
       {!query && recent.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">

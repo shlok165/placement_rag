@@ -1,4 +1,7 @@
+from typing import Any
+
 from fastapi import APIRouter
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, Db
@@ -6,6 +9,7 @@ from app.db.models import Application, SavedJob, SearchEvent, User
 from app.schemas.search import SearchHit, SearchIn, SearchOut
 from app.search.config import get_search_config
 from app.search.engine import Hit, search
+from app.search.nlq import parse
 from app.search.profiles import load_ranking_profile
 
 router = APIRouter(prefix="/api", tags=["search"])
@@ -29,6 +33,17 @@ def annotate(db: Db, user: User, hits: list[Hit]) -> list[SearchHit]:
         .all()
     )
     return [SearchHit.from_hit(h, saved, tracked) for h in hits]
+
+
+class ParseIn(BaseModel):
+    text: str = Field(max_length=300)
+
+
+@router.post("/search/parse")
+def parse_query(body: ParseIn, _: CurrentUser) -> dict[str, Any]:
+    """Split a typed request into filters and a clean query. Rules only, no LLM."""
+    parsed = parse(body.text)
+    return {"query": parsed.query, "filters": parsed.filters, "chips": parsed.chips}
 
 
 @router.post("/search", response_model=SearchOut)
