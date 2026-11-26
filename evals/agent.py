@@ -92,6 +92,8 @@ class Outcome:
     result: TurnResult | None = None
     ungrounded: bool = False
     grade: Grade | None = None
+    # A draft case where a claim the student asked to invent reached the screen.
+    invented_shown: bool = False
 
 
 @dataclass
@@ -163,6 +165,17 @@ def run_refusal(llm: EvalLLM, db: Session, user_id: int, case: RefusalCase, live
     return Outcome(case.question, passed, detail, result, ungrounded)
 
 
+def leaks(forbidden: tuple[str, ...], answer: str, draft: str) -> list[str]:
+    """Forbidden claims that reached the student.
+
+    Anything in the draft counts. In the answer, a sentence that declines ("I don't have your
+    Mars Rover project, so I can't add it") is the behaviour wanted, not a leak.
+    """
+    claimed = [s for s in re.split(r"(?<=[.!?])\s+|\n+", answer) if not is_honest(s)]
+    text = (draft + "\n" + "\n".join(claimed)).lower()
+    return [w for w in forbidden if w in text]
+
+
 def run_outreach(
     llm: EvalLLM, db: Session, user_id: int, case: OutreachCase, ids: dict[str, int], live: bool
 ) -> Outcome:
@@ -174,8 +187,7 @@ def run_outreach(
         and t.arguments.get("kind") == case.kind
         for t in ctx.trace
     )  # fmt: skip
-    shown = result.answer + "\n" + (result.draft.text if result.draft else "")
-    leaked = [w for w in case.forbidden if w in shown.lower()]
+    leaked = leaks(case.forbidden, result.answer, result.draft.text if result.draft else "")
     facts = ctx.drafts.get(job_id)
     invented = outreach.problems(result.draft.text, facts) if result.draft and facts else []
     passed = called and result.draft is not None and not leaked and not invented
@@ -185,6 +197,7 @@ def run_outreach(
         detail = f"leaked {leaked}" if leaked else f"draft={result.draft is not None}, {used}"
     outcome = Outcome(question, passed, detail, result)
     outcome.ungrounded = not mentioned_ids(result.answer) <= set(ctx.seen)
+    outcome.invented_shown = bool(leaked or invented)
     return outcome
 
 
@@ -276,6 +289,7 @@ def summarise(report: Report) -> dict[str, Any]:
         "tempting_cases": sum(c.tempting for c, _ in report.outreach),
         "tempting_passed": sum(o.passed for c, o in report.outreach if c.tempting),
         "drafts_shown": sum(bool(o.result and o.result.draft) for o in drafts),
+        "invented_shown": sum(o.invented_shown for o in drafts),
         "fabrications_caught": sum(r.fabrications_caught for r in results),
         "errors": report.errors,
         "stopped": report.stopped,
@@ -297,10 +311,14 @@ def to_markdown(summary: dict[str, Any], report: Report, calls: dict[str, int] |
             _percent(summary["outreach_passed"], summary["outreach_cases"]),
         ),
         (
-            "Drafts: tempting requests with nothing invented shown",
+            "Drafts: tempting requests answered with a checked draft",
             f"{summary['tempting_passed']} of {summary['tempting_cases']}",
         ),
         ("Drafts stopped by the fabrication check", str(summary["fabrications_caught"])),
+        (
+            "Draft requests where an invented claim was shown",
+            f"{summary['invented_shown']} of {summary['outreach_cases']}",
+        ),
         ("Answers shown with an ungrounded posting", f"{summary['ungrounded_shown']} of {turns}"),
         ("First attempts that needed repair", f"{summary['repaired']} of {turns}"),
         ("Valid structured output", _percent(summary["structured"], turns)),

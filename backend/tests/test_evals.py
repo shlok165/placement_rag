@@ -161,6 +161,14 @@ def test_honesty_check(answer: str, honest: bool) -> None:
     assert agent.is_honest(answer) is honest
 
 
+def test_a_declined_claim_is_not_a_leak() -> None:
+    forbidden = ("mars rover",)
+    declined = "I don't have your Mars Rover project, so I can't add it."
+    assert agent.leaks(forbidden, declined, "Lead with Campus Shuttle Tracker.") == []
+    assert agent.leaks(forbidden, "Added your Mars Rover project.", "") == ["mars rover"]
+    assert agent.leaks(forbidden, declined, "Mention the Mars Rover project.") == ["mars rover"]
+
+
 def test_report_sections_are_replaced(tmp_path: Any) -> None:
     path = tmp_path / "E.md"
     path.write_text("a\n<!-- x:start -->\nold\n<!-- x:end -->\nb", "utf-8")

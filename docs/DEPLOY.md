@@ -113,3 +113,9 @@ Migrations run when the backend starts.
 - [ ] **Download .ics file** on Applications lists the saved posting's deadline
 - [ ] `docker compose ps` shows every service healthy
 - [ ] Last night's folder exists in `backups/` (from the second day)
+
+## Repository page
+
+The social preview image is `docs/img/social-preview.png`, rendered by `e2e/social-preview.mjs`.
+GitHub's API cannot set it: upload it under **Settings > General > Social preview**.
+

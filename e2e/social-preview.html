@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>placement_rag social preview</title>
+    <style>
+      body {
+        margin: 0;
+        width: 1280px;
+        height: 640px;
+        background: #0b3b34;
+        font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+        color: #f2fbf8;
+        display: grid;
+        grid-template-columns: 430px 1fr;
+        overflow: hidden;
+      }
+      .text {
+        padding: 64px 0 0 64px;
+      }
+      h1 {
+        font-size: 52px;
+        margin: 0 0 18px;
+        letter-spacing: -0.02em;
+      }
+      p {
+        font-size: 23px;
+        line-height: 1.4;
+        margin: 0 0 14px;
+        color: #cdeee6;
+      }
+      .shots {
+        position: relative;
+      }
+      img {
+        position: absolute;
+        width: 720px;
+        border-radius: 12px;
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+      }
+      .a {
+        top: 60px;
+        left: 40px;
+      }
+      .b {
+        top: 300px;
+        left: 160px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="text">
+      <h1>placement_rag</h1>
+      <p>Internship and placement copilot</p>
+      <p>Hybrid search with explainable ranking, a grounded tool-using agent, two portals.</p>
+      <p>FastAPI · Postgres + pgvector · React</p>
+    </div>
+    <div class="shots">
+      <img class="a" src="/img/student-copilot.png" alt="" />
+      <img class="b" src="/img/student-job.png" alt="" />
+    </div>
+  </body>
+</html>
