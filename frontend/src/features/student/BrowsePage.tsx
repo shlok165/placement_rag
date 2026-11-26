@@ -407,7 +407,7 @@ export function BrowsePage() {
         <aside className="hidden lg:block" aria-label="Filters">
           <FilterPanel filters={filters} onChange={setFilters} />
         </aside>
-        <section aria-label="Results" className="min-w-0">
+        <section aria-label="Results" aria-busy={results.isFetching} className="min-w-0">
           <h2 className="sr-only">Results</h2>
           <div className="mb-3 flex flex-wrap items-center gap-3">
             <p className="text-muted-foreground mr-auto text-sm" aria-live="polite">
