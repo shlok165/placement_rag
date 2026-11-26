@@ -1,6 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { ExternalLink, SearchX } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ExternalLink, SearchX, ThumbsDown, ThumbsUp } from 'lucide-react';
 import { Link, useParams } from 'react-router';
+import { toast } from 'sonner';
 import { FitPanel } from './FitPanel';
 import { useTrack } from './hooks';
 import { DeadlineBadge, JobFacts, SaveButton } from './JobCard';
@@ -9,11 +10,66 @@ import { QueryState } from '@/components/QueryState';
 import { Button } from '@/components/ui/button';
 import { Alert, Badge, Card, EmptyState } from '@/components/ui/display';
 import { Field, Select } from '@/components/ui/form';
-import { api, ApiError } from '@/lib/api';
+import { api, ApiError, messageOf } from '@/lib/api';
+import { recordEvent } from '@/lib/events';
 import { deadlineText, formatDate } from '@/lib/format';
 import { stageOptions, type Stage } from '@/lib/stages';
 import { useTitle } from '@/lib/title';
 import type { JobDetail } from '@/lib/types';
+
+function Reaction({ jobId, value }: { jobId: number; value: JobDetail['reaction'] }) {
+  const client = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: (reaction: JobDetail['reaction']) =>
+      api<{ reaction: JobDetail['reaction'] }>(`/jobs/${jobId}/reaction`, {
+        method: 'PUT',
+        body: { reaction },
+      }),
+    onSuccess: ({ reaction }) => {
+      client.setQueryData<JobDetail>(['job', jobId], (old) => (old ? { ...old, reaction } : old));
+      client.invalidateQueries({ queryKey: ['home'] });
+      toast.success(
+        reaction === null
+          ? 'Cleared'
+          : reaction === 'up'
+            ? 'You will see more postings like this'
+            : 'You will see fewer postings like this',
+      );
+    },
+    onError: (error) => toast.error(messageOf(error)),
+  });
+  const choose = (next: 'up' | 'down') => mutation.mutate(value === next ? null : next);
+  return (
+    <Card className="p-5">
+      <h2 className="font-semibold">Your recommendations</h2>
+      <p className="text-muted-foreground mt-1 text-sm">
+        This changes only how postings are ordered for you. Press again to undo.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          aria-pressed={value === 'up'}
+          disabled={mutation.isPending}
+          onClick={() => choose('up')}
+          className="aria-pressed:border-primary aria-pressed:border"
+        >
+          <ThumbsUp aria-hidden />
+          More like this
+        </Button>
+        <Button
+          variant="secondary"
+          aria-pressed={value === 'down'}
+          disabled={mutation.isPending}
+          onClick={() => choose('down')}
+          className="aria-pressed:border-primary aria-pressed:border"
+        >
+          <ThumbsDown aria-hidden />
+          Fewer like this
+        </Button>
+      </div>
+    </Card>
+  );
+}
 
 function Detail({ data }: { data: JobDetail }) {
   const { job, application } = data;
@@ -36,7 +92,12 @@ function Detail({ data }: { data: JobDetail }) {
           <SaveButton jobId={job.id} title={job.title} saved={data.saved} label />
           {job.apply_url && !closed && (
             <Button asChild>
-              <a href={job.apply_url} target="_blank" rel="noopener noreferrer">
+              <a
+                href={job.apply_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => recordEvent(job.id, 'apply_clicked')}
+              >
                 Apply
                 <ExternalLink aria-hidden />
                 <span className="sr-only">(opens in a new tab)</span>
@@ -152,6 +213,7 @@ function Detail({ data }: { data: JobDetail }) {
             </div>
           </Card>
           <FitPanel breakdown={data.breakdown} />
+          <Reaction jobId={job.id} value={data.reaction ?? null} />
         </aside>
       </div>
     </>

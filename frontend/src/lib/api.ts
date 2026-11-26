@@ -44,11 +44,11 @@ export async function toApiError(response: Response): Promise<ApiError> {
   }
 }
 
-type Options = { method?: string; body?: unknown; signal?: AbortSignal };
+type Options = { method?: string; body?: unknown; signal?: AbortSignal; keepalive?: boolean };
 
 export async function api<T>(
   path: string,
-  { method = 'GET', body, signal }: Options = {},
+  { method = 'GET', body, signal, keepalive }: Options = {},
 ): Promise<T> {
   const isForm = body instanceof FormData;
   let response: Response;
@@ -56,6 +56,7 @@ export async function api<T>(
     response = await fetch(`/api${path}`, {
       method,
       signal,
+      keepalive,
       credentials: 'same-origin',
       headers: {
         ...(body !== undefined && !isForm ? { 'Content-Type': 'application/json' } : {}),

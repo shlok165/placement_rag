@@ -17,6 +17,7 @@ from app.db.models import (
     Application,
     ChatMessage,
     ChatSession,
+    InteractionEvent,
     Job,
     MemoryFact,
     Notification,
@@ -205,6 +206,14 @@ def export(user: CurrentUser, db: Db, response: Response) -> dict[str, Any]:
         "memory": [
             {"text": m.text, "kind": m.kind, "created_at": m.created_at}
             for m in db.scalars(select(MemoryFact).where(MemoryFact.user_id == user.id))
+        ],
+        "activity": [
+            {"job_id": e.job_id, "kind": e.kind, "at": e.created_at}
+            for e in db.scalars(
+                select(InteractionEvent)
+                .where(InteractionEvent.user_id == user.id)
+                .order_by(InteractionEvent.id)
+            )
         ],
         "notifications": [
             {"type": n.type, "payload": n.payload, "created_at": n.created_at}

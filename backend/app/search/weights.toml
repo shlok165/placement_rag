@@ -19,12 +19,26 @@ relevance = 0.45
 skills = 0.20
 preferences = 0.30
 profile = 0.10
+# Similarity to postings the student saved, applied to or liked. Set before measuring, not tuned.
+taste = 0.10
 # Must stay below every other weight, so urgency can only break near-ties.
 urgency = 0.02
 urgency_window_days = 14
 # Cosine similarity range that maps to 0..1 for the profile component.
 similarity_floor = 0.50
 similarity_ceiling = 0.85
+
+[taste]
+# Events count less as they age: half the weight after this many days.
+enabled = true
+half_life_days = 30
+lookback_days = 180
+max_events = 200
+# Weight per event kind. A thumb down is subtracted.
+save = 1.0
+apply_clicked = 1.5
+thumb_up = 1.0
+thumb_down = 0.5
 
 [cross_encoder]
 # Reorders the top fused candidates with a small cross-encoder. See docs/EVALS.md for why it is off.

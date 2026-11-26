@@ -9,12 +9,15 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from app.api.deps import CurrentUser, Db
+from app.api.events import reaction, record
 from app.api.search import annotate
 from app.core.errors import AppError, NotFound
 from app.db.models import (
     Announcement,
     AppFeedback,
     Application,
+    EventKind,
+    InteractionEvent,
     Job,
     JobStatus,
     JobView,
@@ -92,6 +95,7 @@ def job_detail(job_id: int, user: CurrentUser, db: Db) -> JobDetail:
             index_elements=["job_id", "view_date"], set_={"count": JobView.count + 1}
         )
     )
+    record(db, user.id, job.id, EventKind.open)
     profile = load_ranking_profile(db, user.id)
     breakdown = None
     if not profile.is_empty:
@@ -108,6 +112,7 @@ def job_detail(job_id: int, user: CurrentUser, db: Db) -> JobDetail:
         saved=saved,
         application=_application(application, job) if application else None,
         similar=[JobOut.model_validate(j) for j in similar],
+        reaction=reaction(db, user.id, job.id),
     )
 
 
@@ -133,7 +138,9 @@ def list_saved(user: CurrentUser, db: Db) -> list[SearchHit]:
 
 def save(db: Db, user_id: int, job_id: int) -> None:
     statement = insert(SavedJob).values(user_id=user_id, job_id=job_id)
-    db.execute(statement.on_conflict_do_nothing())
+    # RETURNING yields a row only when the save is new, so a repeat records no second event.
+    if db.scalar(statement.on_conflict_do_nothing().returning(SavedJob.job_id)) is not None:
+        record(db, user_id, job_id, EventKind.save)
     db.commit()
 
 
@@ -146,6 +153,14 @@ def save_job(job_id: int, user: CurrentUser, db: Db) -> None:
 @router.delete("/saved/{job_id}", status_code=204)
 def unsave_job(job_id: int, user: CurrentUser, db: Db) -> None:
     db.execute(delete(SavedJob).where(SavedJob.user_id == user.id, SavedJob.job_id == job_id))
+    # An undone save no longer says anything about taste.
+    db.execute(
+        delete(InteractionEvent).where(
+            InteractionEvent.user_id == user.id,
+            InteractionEvent.job_id == job_id,
+            InteractionEvent.kind == EventKind.save,
+        )
+    )
     db.commit()
 
 

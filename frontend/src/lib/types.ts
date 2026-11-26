@@ -102,6 +102,13 @@ export type SearchFilters = {
   closing_within_days?: number | null;
 };
 
+/** Filters read from typed words by POST /search/parse, shown as chips before use. */
+export type ParsedQuery = {
+  query: string;
+  filters: SearchFilters;
+  chips: { key: keyof SearchFilters; label: string; value: string }[];
+};
+
 export type SearchResult = Page<SearchHit> & { personalized: boolean; weak_match: boolean };
 
 export type Application = {
@@ -118,6 +125,8 @@ export type JobDetail = {
   saved: boolean;
   application: Application | null;
   similar: Job[];
+  /** The student's "more like this" (up) or "fewer like this" (down). */
+  reaction: 'up' | 'down' | null;
 };
 
 export type Home = {
@@ -189,7 +198,15 @@ export type ChatMessage = {
   notice: string | null;
   stopped: boolean;
   feedback: 'up' | 'down' | null;
+  /** A checked outreach draft. It is shown to edit and copy, never sent. */
+  draft?: Draft | null;
   created_at: string;
+};
+
+export type Draft = {
+  job_id: number;
+  kind: 'recruiter_note' | 'resume_focus';
+  text: string;
 };
 
 export type ChatSession = { id: number; title: string; updated_at: string };

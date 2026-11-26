@@ -89,6 +89,9 @@ class User(Base):
     onboarded_at: Mapped[datetime | None]
     last_seen_at: Mapped[datetime | None]
     created_at: Mapped[datetime] = _created()
+    # Hash of the secret in the calendar feed URL. None when there is no feed.
+    calendar_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    calendar_created_at: Mapped[datetime | None]
 
     profile: Mapped["StudentProfile | None"] = relationship(back_populates="user", uselist=False)
 
@@ -317,6 +320,8 @@ class MessageFeedback(Base):
     )
     rating: Mapped[str] = mapped_column(String(8))
     comment: Mapped[str] = mapped_column(String(1000), default="")
+    # The student agreed to let coordinators see the steps behind this answer.
+    share_trace: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     promoted_case_id: Mapped[int | None]
     created_at: Mapped[datetime] = _created()
 
@@ -431,6 +436,28 @@ class JobView(Base):
     job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True)
     view_date: Mapped[date] = mapped_column(Date, primary_key=True)
     count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class EventKind(enum.StrEnum):
+    impression = "impression"
+    open = "open"
+    save = "save"
+    apply_clicked = "apply_clicked"
+    thumb_up = "thumb_up"
+    thumb_down = "thumb_down"
+
+
+class InteractionEvent(Base):
+    """What a student did with a posting. No text, only the kind and the posting."""
+
+    __tablename__ = "interaction_events"
+    __table_args__ = (Index("ix_interaction_events_user_kind", "user_id", "kind", "created_at"),)
+
+    id: Mapped[int] = _id()
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    job_id: Mapped[int] = mapped_column(ForeignKey("jobs.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(20))
+    created_at: Mapped[datetime] = _created()
 
 
 class Announcement(Base):

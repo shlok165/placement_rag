@@ -95,6 +95,8 @@ class JobDetail(BaseModel):
     saved: bool
     application: ApplicationOut | None
     similar: list[JobOut]
+    # The student's own "more like this" (up) or "fewer like this" (down), if set.
+    reaction: Literal["up", "down"] | None = None
 
 
 class HomeOut(BaseModel):

@@ -4,6 +4,7 @@ import { useSaveJob } from './hooks';
 import { Button } from '@/components/ui/button';
 import { Badge, Card } from '@/components/ui/display';
 import { Tooltip } from '@/components/ui/overlay';
+import { useImpressions } from '@/lib/events';
 import { daysUntil, deadlineText, payText, placeText, typeText } from '@/lib/format';
 import { stageLabel, type Stage } from '@/lib/stages';
 import type { Breakdown, Job, SearchHit } from '@/lib/types';
@@ -106,6 +107,7 @@ export function SaveButton({
 
 export function JobCard({ hit, level: Heading = 'h3' }: { hit: SearchHit; level?: 'h2' | 'h3' }) {
   const { job, breakdown } = hit;
+  useImpressions([job.id]);
   return (
     <Card className="hover:border-input relative p-4 transition-colors sm:p-5">
       <div className="flex items-start gap-3">

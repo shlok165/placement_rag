@@ -83,6 +83,35 @@ Checked against the live OpenAPI document (`/openapi.json`, version 0.3.0) and `
 - **The cache key includes a forced tool choice** but not the default, so earlier cached answers
   still match.
 
+## Behaviour signals
+
+- **Events carry no text.** `interaction_events` holds a user, a posting, a kind and a time. They
+  are deleted with the account and listed in the data export.
+- **The server records what it can see.** Saves and opens are written where they happen, so a save
+  confirmed in the copilot counts like one on a card. The browser reports only impressions and
+  apply clicks. "More like this" and "Fewer like this" have their own endpoint, which can also
+  clear them.
+- **Undoing a save removes its event,** so the taste vector follows what the student keeps.
+- **Taste weight 0.10 was set before measuring.** It equals the profile weight. The offline
+  simulation reports a sensitivity table but the weight was not chosen from it.
+- **No events means no feature.** Without a positive event there is no taste vector and no taste
+  component, so the score is computed by exactly the same code path as before. A test checks this.
+
+## Outreach drafts
+
+- **The model writes the draft; code checks it.** `draft_outreach` returns the facts a draft may
+  use. The draft comes back in `final_answer.draft` and must pass a deterministic check: every
+  skill, organisation, project name and number has to come from the profile or the posting, and a
+  first-person claim of a skill has to be in the profile. Aspirations ("keen to learn") are not
+  claims.
+- **Never an unchecked draft.** A failed draft gets one repair request. If it fails again, the
+  student sees a template draft built only from the facts. A draft written into the answer text
+  instead of the draft field is checked the same way.
+- **Pattern matching, not another model call.** The check costs nothing, is the same every time
+  and can be tested with planted fabrications. It can miss an invented claim phrased without a
+  name, a number or a known skill ("I am a great leader").
+- **Nothing is sent.** The draft is shown in an editable box with a copy button.
+
 ## Evals
 
 - **One live run only.** Later changes were not measured live, to respect the call budget.

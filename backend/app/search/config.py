@@ -21,16 +21,41 @@ class RerankConfig(BaseModel):
     preferences: float = Field(ge=0)
     profile: float = Field(ge=0)
     urgency: float = Field(ge=0)
+    # Closeness to the postings the student saved, applied to or liked. 0 turns it off.
+    taste: float = Field(0.0, ge=0)
     urgency_window_days: int = Field(14, ge=1)
     similarity_floor: float = 0.5
     similarity_ceiling: float = 0.85
 
     @model_validator(mode="after")
     def _urgency_is_smallest(self) -> "RerankConfig":
-        others = [w for w in (self.relevance, self.skills, self.preferences, self.profile) if w > 0]
+        weights = (self.relevance, self.skills, self.preferences, self.profile, self.taste)
+        others = [w for w in weights if w > 0]
         if self.urgency and any(self.urgency >= w for w in others):
             raise ValueError("urgency must stay below the other weights")
         return self
+
+
+class TasteConfig(BaseModel):
+    """How events become a taste vector. Weights are per kind; thumb_down is subtracted."""
+
+    enabled: bool = True
+    half_life_days: float = Field(30.0, gt=0)
+    lookback_days: int = Field(180, ge=1)
+    max_events: int = Field(200, ge=1)
+    save: float = Field(1.0, ge=0)
+    apply_clicked: float = Field(1.5, ge=0)
+    thumb_up: float = Field(1.0, ge=0)
+    thumb_down: float = Field(0.5, ge=0)
+
+    def weight(self, kind: str) -> float:
+        signed = {
+            "save": self.save,
+            "apply_clicked": self.apply_clicked,
+            "thumb_up": self.thumb_up,
+            "thumb_down": -self.thumb_down,
+        }
+        return signed.get(kind, 0.0)
 
 
 class CrossEncoderConfig(BaseModel):
@@ -45,6 +70,7 @@ class SearchConfig(BaseModel):
     weak_similarity: float = 0.58
     fusion: FusionConfig
     rerank: RerankConfig
+    taste: TasteConfig = TasteConfig()
     cross_encoder: CrossEncoderConfig = CrossEncoderConfig()
 
     def override(self, changes: dict[str, Any]) -> "SearchConfig":

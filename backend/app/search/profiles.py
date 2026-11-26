@@ -6,8 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.db.models import StudentProfile
 from app.embeddings import embed_passages
+from app.search.config import get_search_config
 from app.search.matching import Preferences
 from app.search.ranking import Profile
+from app.search.taste import taste_vector
 
 
 def profile_passage(
@@ -45,4 +47,8 @@ def to_ranking_profile(profile: StudentProfile | None) -> Profile:
 
 
 def load_ranking_profile(db: Session, user_id: int) -> Profile:
-    return to_ranking_profile(db.get(StudentProfile, user_id))
+    profile = to_ranking_profile(db.get(StudentProfile, user_id))
+    config = get_search_config()
+    if config.rerank.taste > 0:
+        profile.taste = taste_vector(db, user_id, config.taste)
+    return profile

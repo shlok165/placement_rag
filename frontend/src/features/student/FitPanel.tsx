@@ -19,7 +19,10 @@ export function FitPanel({ breakdown }: { breakdown: Breakdown | null }) {
       </Card>
     );
   }
-  const parts = breakdown.components.filter((c) => c.key !== 'urgency');
+  // The taste part is shown only when saved postings actually moved this score.
+  const parts = breakdown.components.filter(
+    (c) => c.key !== 'urgency' && !(c.key === 'taste' && !c.contribution),
+  );
   return (
     <Card className="p-5">
       <div className="flex items-baseline justify-between gap-3">

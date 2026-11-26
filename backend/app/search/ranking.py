@@ -18,12 +18,14 @@ class Profile:
     skills: list[str] = field(default_factory=list)
     preferences: Preferences = field(default_factory=Preferences)
     embedding: list[float] | None = None
+    # Built from what the student saved, applied to or liked. None when there are no such events.
+    taste: list[float] | None = None
 
     @property
     def is_empty(self) -> bool:
         prefs = self.preferences
         stated = prefs.roles or prefs.locations or prefs.job_types or prefs.min_stipend
-        return not (self.skills or stated or self.embedding is not None)
+        return not (self.skills or stated or self.embedding is not None or self.taste is not None)
 
 
 def job_facts(job: Job) -> JobFacts:
@@ -71,11 +73,16 @@ def score_job(
     met = sum(1 for c in checks if c["met"])
     preferences = met / len(checks) if checks else None
 
+    span = config.similarity_ceiling - config.similarity_floor
     closeness = None
     if profile.embedding is not None and job.embedding is not None:
         raw = cosine(profile.embedding, job.embedding)
-        span = config.similarity_ceiling - config.similarity_floor
         closeness = min(1.0, max(0.0, (raw - config.similarity_floor) / span))
+    # Only present when there is a taste vector, so without events nothing changes at all.
+    taste = None
+    if profile.taste is not None and config.taste > 0 and job.embedding is not None:
+        raw = cosine(profile.taste, job.embedding)
+        taste = min(1.0, max(0.0, (raw - config.similarity_floor) / span))
 
     urgency = 0.0
     if job.deadline is not None:
@@ -108,11 +115,22 @@ def score_job(
             "How close your profile text is to this posting",
         ),
     ]
+    total_weight = config.skills + config.preferences + config.profile
+    if taste is not None:
+        fit_parts.append(
+            _component(
+                "taste",
+                "Similar to jobs you saved",
+                taste,
+                config.taste,
+                "Close to postings you saved, applied to or liked",
+            )
+        )
+        total_weight += config.taste
     known = [p for p in fit_parts if p["value"] is not None]
     fit_weight = sum(p["weight"] for p in known)
     fit = sum(p["contribution"] for p in known) / fit_weight if fit_weight else None
 
-    total_weight = config.skills + config.preferences + config.profile
     total = (fit or 0.0) * total_weight + urgency * config.urgency
     parts = list(fit_parts)
     if relevance is not None:
