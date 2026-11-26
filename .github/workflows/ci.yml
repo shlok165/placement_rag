@@ -27,7 +27,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+      - name: Tests with a coverage floor
+        run: npm run coverage
+      - name: Audit runtime dependencies
+        run: npm audit --omit=dev --audit-level=high
 
   backend:
     runs-on: ubuntu-latest
@@ -42,6 +45,18 @@ jobs:
       - name: Retrieval evals
         run: docker compose run --rm test python -m evals.retrieval --check
 
+  supply-chain:
+    name: Python dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v6
+      - name: pip-audit on the locked runtime dependencies
+        working-directory: backend
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project -o "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit -r "$RUNNER_TEMP/requirements.txt" --disable-pip --no-deps
+
   stack:
     name: Build images and browser tests
     runs-on: ubuntu-latest
@@ -50,6 +65,12 @@ jobs:
       - run: cp .env.example .env
       - run: docker compose up --build --wait --wait-timeout 240
       - run: curl -fsS http://localhost:8080/readyz
+      - name: Scan images (fail on fixable high or critical)
+        run: |
+          for image in placement_rag-backend placement_rag-frontend; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.69.1 \
+              image --quiet --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 "$image:latest"
+          done
       - name: Browser tests
         run: docker compose --profile e2e run --rm e2e sh -c "npm ci --no-audit --no-fund && npx playwright test --project=flows"
       - name: Logs
