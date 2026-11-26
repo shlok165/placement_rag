@@ -87,6 +87,18 @@ user has been run.
 - Toasts covered the sticky save bar, so they moved to the top.
 - The last copilot card was hidden behind the message box.
 
+## Added in round 2
+
+| Feature | Design choice | Accessibility |
+|---|---|---|
+| Filters from typed words | "remote ML internship in Bangalore" is shown as chips (Remote, Internship, Bengaluru) with the remaining words, before anything is searched. Each chip can be removed; "Search my words as typed" ignores them all | The panel sits in a polite live region; chips are buttons named "Remove Remote"; targets are at least 28px |
+| Outreach draft | Shown in an editable box under the answer, with Copy and "Undo my edits". The hint says it was checked and that nothing is sent | Labelled text area with a hint; the copy result is announced through a status region; copying that the browser blocks gets a plain fallback message |
+| Calendar | Download an .ics file, or make a private subscription link that is shown once, can be replaced and turned off | Read-only labelled field that selects itself on focus; the copy result is announced |
+| More or fewer like this | Two toggle buttons on a posting, pressed state visible and exposed as `aria-pressed`; pressing again undoes | Text labels, not icons alone; toasts confirm the change |
+| Why this fits | "Similar to jobs you saved" appears only when saved postings moved the score | Same list pattern as the other parts |
+| Share the steps | A checkbox in the rating dialog, off by default, says exactly what coordinators would see | Native checkbox with label and hint |
+| Agent traces (coordinators) | A list of turns, then one turn's steps, checks and cost on one page | Table with header cells in a scrollable, focusable region; success and failure have text, not only colour |
+
 ## Other principles
 
 - **Fitts and Hick:** primary actions are 40 to 48px tall; list views show one main action; filters
