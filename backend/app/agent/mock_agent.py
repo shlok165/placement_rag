@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.agent.grounding import MARKER
+from app.agent.outreach import facts_from_tool, template
 from app.llm.types import LLMResponse, Message, ToolCall
 from app.search.taxonomy import locations_in_text, roles_in_text, skills_in_text
 
@@ -416,11 +417,43 @@ def _refusal(turn: Turn) -> LLMResponse | None:
     return None
 
 
+def _outreach_kind(low: str) -> str | None:
+    if re.search(
+        r"\b(recruiter|hiring (manager|team)|cover (note|letter)|(note|message|email|mail) to|"
+        r"write to|reach out|outreach|intro(duction)? note)\b",
+        low,
+    ):
+        return "recruiter_note"
+    if re.search(r"\b(resume|cv)\b", low) and re.search(
+        r"\b(tailor|focus|highlight|put first|emphasi[sz]e|adjust|for this|for #|for posting)\b",
+        low,
+    ):
+        return "resume_focus"
+    return None
+
+
+def _after_draft(data: dict[str, Any]) -> LLMResponse:
+    facts = facts_from_tool(data)
+    kind = data.get("kind", "recruiter_note")
+    return _call(
+        "final_answer",
+        answer_markdown=f"Here is a draft for [#{facts.job_id}]. It uses only your profile and the "
+        "posting. Edit it before you use it.",
+        cited_job_ids=[facts.job_id],
+        draft={"job_id": facts.job_id, "kind": kind, "text": template(facts, kind)},
+    )
+
+
 def _first_step(turn: Turn) -> LLMResponse:
     low = turn.lowered
     refusal = _refusal(turn)
     if refusal:
         return refusal
+    outreach = _outreach_kind(low)
+    if outreach:
+        if turn.ids:
+            return _call("draft_outreach", job_id=turn.ids[0], kind=outreach)
+        return _search(turn)
     if re.search(r"^\s*(hi|hello|hey|thanks|thank you|help)\b[\s!.]*$|what can you do", low):
         return _answer(
             "I can search postings, explain how one fits you, show skill gaps, compare postings, "
@@ -475,6 +508,8 @@ def _next_step(turn: Turn) -> LLMResponse:
         low = turn.lowered
         if len(turn.results) == 1 and jobs and not data.get("no_close_match"):
             top = jobs[0]["job_id"]
+            if kind := _outreach_kind(low):
+                return _call("draft_outreach", job_id=top, kind=kind)
             if re.search(r"\b(compare|versus|vs\.?)\b", low) and len(jobs) > 1:
                 return _call("compare_jobs", job_ids=_ids(jobs)[:2])
             if re.search(r"\b(skill gap|missing|lack|should i learn|need to learn)\b", low):
@@ -497,6 +532,8 @@ def _next_step(turn: Turn) -> LLMResponse:
         return _after_profile(data)
     if name == "get_job":
         return _after_job(data)
+    if name == "draft_outreach":
+        return _after_draft(data)
     if name == "update_preferences":
         return _answer("I prepared that change. Confirm it below to apply it.")
     job = data["job"]

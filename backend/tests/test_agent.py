@@ -173,7 +173,7 @@ def test_tool_schemas_have_no_references() -> None:
     specs = json.dumps(tool_specs())
     assert "$ref" not in specs
     assert "$defs" not in specs
-    assert len(tool_specs()) == 11
+    assert len(tool_specs()) == 12
 
 
 def test_tools_use_the_session_user(

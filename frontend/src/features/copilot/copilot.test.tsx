@@ -1,8 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { vi } from 'vitest';
 import { linkCitations } from './Answer';
+import { DraftBox } from './MessageParts';
 import { parseEvents } from './stream';
 import { App } from '@/App';
+import type { Draft } from '@/lib/types';
 import { axeViolations, mockApi, renderPage, studentUser } from '@/test/render';
 
 const message = {
@@ -150,5 +153,21 @@ describe('copilot', () => {
 
   it('links only citation markers', () => {
     expect(linkCitations('See [#12] and #13')).toBe('See [#12](/jobs/12) and #13');
+  });
+
+  it('shows a checked draft that can be edited, undone and copied', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const draft = { job_id: 3, kind: 'recruiter_note', text: 'Dear Acme hiring team,' };
+    const { container } = renderPage(<DraftBox draft={draft as Draft} messageId={9} />);
+    const box = screen.getByRole('textbox', { name: 'Draft note to the recruiter' });
+    expect(box).toHaveValue('Dear Acme hiring team,');
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.type(box, ' hello');
+    await userEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(writeText).toHaveBeenCalledWith('Dear Acme hiring team, hello');
+    expect(screen.getByRole('status')).toHaveTextContent('Copied');
+    await userEvent.click(screen.getByRole('button', { name: 'Undo my edits' }));
+    expect(box).toHaveValue('Dear Acme hiring team,');
   });
 });

@@ -1,6 +1,7 @@
 """Agent tools. The student always comes from the signed-in session, never from arguments."""
 
 import json
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
@@ -11,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.agent import schemas as s
+from app.agent.outreach import Facts, build_facts
 from app.db.models import Application, Job, JobStatus, SavedJob, StudentProfile
 from app.search.config import get_search_config
 from app.search.engine import search
@@ -37,6 +39,9 @@ class ToolContext:
     trace: list[s.ToolTrace] = field(default_factory=list)
     # Raw tool output, kept for evals.
     outputs: list[str] = field(default_factory=list)
+    # Facts handed out by draft_outreach, by posting. A draft may only use these.
+    drafts: dict[int, Facts] = field(default_factory=dict)
+    draft_kinds: dict[int, str] = field(default_factory=dict)
     _profile: Profile | None = None
 
     @property
@@ -224,6 +229,14 @@ def skill_gap(ctx: ToolContext, args: s.SkillGapArgs) -> dict[str, Any]:
     }
 
 
+def draft_outreach(ctx: ToolContext, args: s.DraftOutreachArgs) -> dict[str, Any]:
+    job = _visible(ctx, args.job_id)
+    facts = build_facts(ctx.db.get(StudentProfile, ctx.user_id), job)
+    ctx.drafts[job.id] = facts
+    ctx.draft_kinds[job.id] = args.kind
+    return {"kind": args.kind, **facts.to_tool()}
+
+
 # ---------------------------------------------------------------- write tools
 
 
@@ -312,6 +325,7 @@ TOOLS: dict[str, Tool] = {
         Tool("compare_jobs", s.CompareJobsArgs, compare_jobs, "Comparing postings"),
         Tool("explain_fit", s.ExplainFitArgs, explain_fit, "Working out the fit"),
         Tool("skill_gap", s.SkillGapArgs, skill_gap, "Comparing skills"),
+        Tool("draft_outreach", s.DraftOutreachArgs, draft_outreach, "Gathering facts for a draft"),
         Tool("final_answer", s.FinalAnswerArgs, None, "Writing the answer"),
     )
 }
@@ -353,6 +367,7 @@ def tool_specs(names: list[str] | None = None) -> list[dict[str, Any]]:
 def execute(ctx: ToolContext, name: str, raw_arguments: str) -> tuple[bool, str]:
     """Validate and run one tool. Returns (ok, compact JSON for the model)."""
     arguments: dict[str, Any] = {}
+    started = time.perf_counter()
     try:
         tool = TOOLS.get(name)
         if tool is None or tool.run is None:
@@ -372,7 +387,10 @@ def execute(ctx: ToolContext, name: str, raw_arguments: str) -> tuple[bool, str]
         summary = ""
         if isinstance(result.get("results"), list):
             summary = f"{len(result['results'])} results"
-        ctx.trace.append(s.ToolTrace(name=name, arguments=arguments, ok=True, summary=summary))
+        ms = int((time.perf_counter() - started) * 1000)
+        ctx.trace.append(
+            s.ToolTrace(name=name, arguments=arguments, ok=True, summary=summary, ms=ms)
+        )
         content = json.dumps(result, separators=(",", ":"), default=str, ensure_ascii=False)
         ctx.outputs.append(content)
         return True, content

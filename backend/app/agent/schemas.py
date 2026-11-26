@@ -96,6 +96,26 @@ class SkillGapArgs(ToolArgs):
     job_id: JobId
 
 
+OutreachKind = Literal["recruiter_note", "resume_focus"]
+
+
+class DraftOutreachArgs(ToolArgs):
+    """Facts for a recruiter note or resume advice for one posting. Write the draft yourself in
+    final_answer.draft, using only these facts."""
+
+    job_id: JobId
+    kind: OutreachKind = Field(
+        description="recruiter_note: a short message to the hiring team. resume_focus: what to "
+        "put first on the resume for this posting"
+    )
+
+
+class Draft(ToolArgs):
+    job_id: JobId
+    kind: OutreachKind
+    text: str = Field(min_length=1, max_length=2500)
+
+
 class FinalAnswerArgs(ToolArgs):
     """Finish the turn with the answer shown to the student."""
 
@@ -108,6 +128,17 @@ class FinalAnswerArgs(ToolArgs):
     suggested_followups: list[Annotated[str, Field(max_length=120)]] = Field(
         default_factory=list, max_length=3
     )
+    draft: Draft | None = Field(
+        None, description="Only after draft_outreach: the draft, built from its facts alone"
+    )
+
+
+class DraftOut(BaseModel):
+    """A checked draft, shown in an editable box. It is never sent anywhere."""
+
+    job_id: int
+    kind: OutreachKind
+    text: str
 
 
 class Citation(BaseModel):
@@ -140,6 +171,7 @@ class ToolTrace(BaseModel):
     arguments: dict[str, Any]
     ok: bool
     summary: str = ""
+    ms: int = 0
 
 
 class MessageOut(BaseModel):
@@ -152,6 +184,7 @@ class MessageOut(BaseModel):
     notice: str | None = None
     stopped: bool = False
     feedback: Literal["up", "down"] | None = None
+    draft: DraftOut | None = None
     created_at: datetime
 
 

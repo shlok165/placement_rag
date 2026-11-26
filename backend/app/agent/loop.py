@@ -7,8 +7,8 @@ from typing import Any, Literal
 
 from pydantic import ValidationError
 
-from app.agent import grounding
-from app.agent.schemas import Citation, FinalAnswerArgs
+from app.agent import grounding, outreach
+from app.agent.schemas import Citation, DraftOut, FinalAnswerArgs
 from app.agent.tools import TOOLS, ToolContext, execute, tool_specs
 from app.core.config import Settings
 from app.llm.client import LLMClient, extract_json
@@ -51,6 +51,10 @@ class TurnResult:
     # code, from plain text or from tool results, and checked the same way.
     kind: AnswerKind = "fallback"
     format_repairs: int = 0
+    # A checked outreach draft, and how many drafts the fabrication check stopped.
+    draft: DraftOut | None = None
+    fabrications_caught: int = 0
+    cache_hits: int = 0
     iterations: int = 0
     tokens: int = 0
     mode: str = "mock"
@@ -59,6 +63,16 @@ class TurnResult:
 
 def fallback_answer(ctx: ToolContext) -> TurnResult:
     """Built only from tool results, so it is always grounded."""
+    if ctx.drafts:
+        job_id, facts = list(ctx.drafts.items())[-1]
+        kind = ctx.draft_kinds.get(job_id, "recruiter_note")
+        draft = DraftOut(job_id=job_id, kind=kind, text=outreach.template(facts, kind))  # type: ignore[arg-type]
+        return TurnResult(
+            f"Here is a draft for [#{job_id}], built only from your profile and the posting. "
+            "Edit it before you use it.",
+            citations=[ctx.seen[job_id]],
+            draft=draft,
+        )
     if not ctx.seen:
         return TurnResult(
             "I do not have an answer for that from the postings. Try naming a role, a skill or a "
@@ -114,7 +128,7 @@ def run_turn(
     allow_fallback: bool = True,
 ) -> TurnResult:
     messages = list(messages)
-    tokens = repairs = format_repairs = 0
+    tokens = repairs = format_repairs = caught = 0
     notice: str | None = None
     mode = "mock"
     modes: list[str] = []
@@ -127,21 +141,41 @@ def run_turn(
         result.notice = result.notice or notice
         result.repaired = repairs + format_repairs > 0
         result.format_repairs = format_repairs
+        result.fabrications_caught = caught
+        result.cache_hits = modes.count("cache")
         if result.structured:
             result.kind = "repaired" if result.repaired else "structured"
         # A turn counts as live if any of its calls reached the provider.
         result.mode = next((m for m in ("live", "cache") if m in modes), mode)
         return result
 
+    def fabrications(answer: FinalAnswerArgs) -> list[str]:
+        """A draft may use only the facts draft_outreach returned for its posting."""
+        if answer.draft is not None:
+            facts = ctx.drafts.get(answer.draft.job_id)
+            if facts is None:
+                return ["a draft needs draft_outreach for that posting first"]
+            return outreach.problems(answer.draft.text, facts)
+        if ctx.drafts:
+            # A draft written into the answer itself is checked the same way.
+            return outreach.problems(answer.answer_markdown, list(ctx.drafts.values())[-1])
+        return []
+
     def check(answer: FinalAnswerArgs, structured: bool) -> TurnResult | list[str]:
+        nonlocal caught
         found = grounding.problems(answer, ctx.seen)
-        if found:
-            return found
+        invented = fabrications(answer)
+        if invented:
+            caught += 1
+        if found or invented:
+            return found + [f"the draft is not shown: {p}" for p in invented]
+        draft = answer.draft
         return TurnResult(
             answer.answer_markdown,
             grounding.citations(answer, ctx.seen),
             answer.suggested_followups,
             structured=structured,
+            draft=DraftOut(**draft.model_dump()) if draft else None,
         )
 
     while step < settings.agent_max_iterations:

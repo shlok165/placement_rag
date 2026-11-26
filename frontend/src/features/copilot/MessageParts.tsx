@@ -1,15 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Check, ThumbsDown, ThumbsUp, X } from 'lucide-react';
+import { Check, Copy, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { Answer } from './Answer';
 import { Button } from '@/components/ui/button';
 import { Alert, Card } from '@/components/ui/display';
-import { Field, Textarea } from '@/components/ui/form';
+import { CheckRow, Field, Textarea } from '@/components/ui/form';
 import { Dialog } from '@/components/ui/overlay';
 import { api, messageOf } from '@/lib/api';
-import type { ChatMessage, PendingAction } from '@/lib/types';
+import type { ChatMessage, Draft, PendingAction } from '@/lib/types';
 
 const doneText: Record<PendingAction['kind'], string> = {
   save_job: 'Saved',
@@ -83,8 +83,9 @@ function Rating({ message }: { message: ChatMessage }) {
   const [rating, setRating] = useState(message.feedback);
   const [asking, setAsking] = useState(false);
   const [comment, setComment] = useState('');
+  const [share, setShare] = useState(false);
   const send = useMutation({
-    mutationFn: (body: { rating: 'up' | 'down'; comment?: string }) =>
+    mutationFn: (body: { rating: 'up' | 'down'; comment?: string; share_trace?: boolean }) =>
       api<void>(`/chat/messages/${message.id}/feedback`, { method: 'POST', body }),
     onError: (error) => {
       setRating(message.feedback);
@@ -126,9 +127,10 @@ function Rating({ message }: { message: ChatMessage }) {
           className="flex flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault();
-            if (rating && comment.trim())
+            // Always sent, so unticking the box withdraws an earlier share.
+            if (rating)
               send.mutate(
-                { rating, comment: comment.trim() },
+                { rating, comment: comment.trim(), share_trace: share },
                 { onSuccess: () => toast.success('Thank you') },
               );
             setAsking(false);
@@ -144,6 +146,12 @@ function Rating({ message }: { message: ChatMessage }) {
               />
             )}
           </Field>
+          <CheckRow
+            label="Share the steps behind this answer"
+            hint="Lets the CAPS team see your question, the tools the copilot used and its checks, to fix problems. You can change this later by rating again."
+            checked={share}
+            onCheckedChange={setShare}
+          />
           <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={() => setAsking(false)}>
               Skip
@@ -153,6 +161,59 @@ function Rating({ message }: { message: ChatMessage }) {
         </form>
       </Dialog>
     </div>
+  );
+}
+
+const draftTitle: Record<Draft['kind'], string> = {
+  recruiter_note: 'Draft note to the recruiter',
+  resume_focus: 'What to put first on your resume',
+};
+
+export function DraftBox({ draft, messageId }: { draft: Draft; messageId: number }) {
+  const [text, setText] = useState(draft.text);
+  const [status, setStatus] = useState('');
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setStatus('Copied');
+    } catch {
+      setStatus('Copying is blocked here. Select the text and copy it instead.');
+    }
+  };
+  return (
+    <Card className="p-4">
+      <Field
+        label={draftTitle[draft.kind]}
+        hint="Built only from your profile and the posting, and checked for invented claims. Edit it, then copy it. Nothing is sent."
+      >
+        {(ids) => (
+          <Textarea
+            {...ids}
+            data-message={messageId}
+            rows={Math.min(14, Math.max(5, text.split('\n').length + 1))}
+            value={text}
+            onChange={(e) => {
+              setText(e.target.value);
+              setStatus('');
+            }}
+          />
+        )}
+      </Field>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <Button size="sm" variant="secondary" onClick={copy}>
+          <Copy aria-hidden />
+          Copy
+        </Button>
+        {text !== draft.text && (
+          <Button size="sm" variant="ghost" onClick={() => setText(draft.text)}>
+            Undo my edits
+          </Button>
+        )}
+        <p className="text-muted-foreground text-sm" role="status" aria-live="polite">
+          {status}
+        </p>
+      </div>
+    </Card>
   );
 }
 
@@ -184,6 +245,9 @@ export function AssistantMessage({
       {message.notice && <Alert tone="warning">{message.notice}</Alert>}
       <Answer text={message.content} citations={message.citations} />
       {message.stopped && <p className="text-muted-foreground text-sm">You stopped this answer.</p>}
+      {message.draft && !message.stopped && (
+        <DraftBox draft={message.draft} messageId={message.id} />
+      )}
       {message.citations.length > 0 && (
         <div>
           <p className="text-muted-foreground text-xs font-medium">Sources</p>

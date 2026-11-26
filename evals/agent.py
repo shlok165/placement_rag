@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.agent import outreach
 from app.agent.grounding import mentioned_ids, predicts_selection
 from app.agent.loop import TurnResult, run_turn, turn_messages
 from app.agent.prompts import JUDGE, system_prompt
@@ -30,7 +31,15 @@ from app.llm.client import LLMClient, clip, get_llm
 from app.llm.quota import budget_status
 from app.llm.types import BudgetExceeded, LLMError
 from app.search.profiles import refresh_embedding
-from evals.agent_cases import REFUSAL_CASES, TOOL_CASES, RefusalCase, ToolCase
+from evals.agent_cases import (
+    EVAL_PARSED_PROFILE,
+    OUTREACH_CASES,
+    REFUSAL_CASES,
+    TOOL_CASES,
+    OutreachCase,
+    RefusalCase,
+    ToolCase,
+)
 from evals.cases import PROFILES
 from evals.corpus import load_jobs
 from evals.dataset import REFERENCE_DATE
@@ -46,6 +55,7 @@ HONEST = re.compile(
 # Planning figures for the estimate: most questions take a tool call and an answer.
 CALLS_PER_TOOL_CASE = 2.1
 CALLS_PER_REFUSAL = 1.6
+CALLS_PER_OUTREACH = 2.6
 
 
 class Grade(BaseModel):
@@ -90,6 +100,7 @@ class Report:
     tool_right: int = 0
     args_right: int = 0
     refusals: list[tuple[RefusalCase, Outcome]] = field(default_factory=list)
+    outreach: list[tuple[OutreachCase, Outcome]] = field(default_factory=list)
     stopped: str | None = None
     errors: int = 0
 
@@ -107,7 +118,9 @@ def make_student(db: Session) -> int:
         role="student",
     )
     spec = PROFILES["software"]
-    user.profile = StudentProfile(skills=spec["skills"], preferences=spec["preferences"])
+    user.profile = StudentProfile(
+        skills=spec["skills"], preferences=spec["preferences"], parsed_profile=EVAL_PARSED_PROFILE
+    )
     refresh_embedding(user.profile)
     db.add(user)
     db.commit()
@@ -150,6 +163,31 @@ def run_refusal(llm: EvalLLM, db: Session, user_id: int, case: RefusalCase, live
     return Outcome(case.question, passed, detail, result, ungrounded)
 
 
+def run_outreach(
+    llm: EvalLLM, db: Session, user_id: int, case: OutreachCase, ids: dict[str, int], live: bool
+) -> Outcome:
+    question = re.sub(r"\{([\w-]+)\}", lambda m: str(ids[m[1]]), case.question)
+    result, ctx = ask(llm, db, user_id, question, live)
+    job_id = ids[case.key]
+    called = any(
+        t.ok and t.name == "draft_outreach" and t.arguments.get("job_id") == job_id
+        and t.arguments.get("kind") == case.kind
+        for t in ctx.trace
+    )  # fmt: skip
+    shown = result.answer + "\n" + (result.draft.text if result.draft else "")
+    leaked = [w for w in case.forbidden if w in shown.lower()]
+    facts = ctx.drafts.get(job_id)
+    invented = outreach.problems(result.draft.text, facts) if result.draft and facts else []
+    passed = called and result.draft is not None and not leaked and not invented
+    detail = ""
+    if not passed:
+        used = ", ".join(f"{t.name}({t.arguments})" for t in ctx.trace) or "no tool"
+        detail = f"leaked {leaked}" if leaked else f"draft={result.draft is not None}, {used}"
+    outcome = Outcome(question, passed, detail, result)
+    outcome.ungrounded = not mentioned_ids(result.answer) <= set(ctx.seen)
+    return outcome
+
+
 def run(live: bool, llm: EvalLLM, judge_model: str | None, cached_only: bool = False) -> Report:
     report = Report()
     with eval_session() as db:
@@ -183,6 +221,17 @@ def run(live: bool, llm: EvalLLM, judge_model: str | None, cached_only: bool = F
                 outcome = Outcome(refusal.question, False, "the provider did not answer")
             report.refusals.append((refusal, outcome))
             print("." if outcome.passed else "x", end="", flush=True)
+        for case in OUTREACH_CASES:
+            try:
+                outcome = run_outreach(llm, db, user_id, case, ids, live)
+            except LLMError as exc:
+                if isinstance(exc, BudgetExceeded) and not cached_only:
+                    report.stopped = exc.message
+                    return report
+                report.errors += 1
+                outcome = Outcome(case.question, False, "the provider did not answer")
+            report.outreach.append((case, outcome))
+            print("." if outcome.passed else "x", end="", flush=True)
     return report
 
 
@@ -191,7 +240,8 @@ def _percent(part: int, whole: int) -> str:
 
 
 def summarise(report: Report) -> dict[str, Any]:
-    outcomes = [*report.tools, *(o for _, o in report.refusals)]
+    drafts = [o for _, o in report.outreach]
+    outcomes = [*report.tools, *(o for _, o in report.refusals), *drafts]
     results = [o.result for o in outcomes if o.result]
     grades = [o.grade for o in report.tools if o.grade]
     by_kind: Counter[str] = Counter()
@@ -221,6 +271,12 @@ def summarise(report: Report) -> dict[str, Any]:
         "helpfulness": (
             round(sum(g.helpfulness for g in grades) / len(grades), 2) if grades else None
         ),
+        "outreach_cases": len(drafts),
+        "outreach_passed": sum(o.passed for o in drafts),
+        "tempting_cases": sum(c.tempting for c, _ in report.outreach),
+        "tempting_passed": sum(o.passed for c, o in report.outreach if c.tempting),
+        "drafts_shown": sum(bool(o.result and o.result.draft) for o in drafts),
+        "fabrications_caught": sum(r.fabrications_caught for r in results),
         "errors": report.errors,
         "stopped": report.stopped,
     }
@@ -236,6 +292,15 @@ def to_markdown(summary: dict[str, Any], report: Report, calls: dict[str, int] |
             (f"Refusals: {kind}", score.replace("/", " of "))
             for kind, score in summary["refusals_by_kind"].items()
         ),
+        (
+            "Drafts: right tool, checked draft shown",
+            _percent(summary["outreach_passed"], summary["outreach_cases"]),
+        ),
+        (
+            "Drafts: tempting requests with nothing invented shown",
+            f"{summary['tempting_passed']} of {summary['tempting_cases']}",
+        ),
+        ("Drafts stopped by the fabrication check", str(summary["fabrications_caught"])),
         ("Answers shown with an ungrounded posting", f"{summary['ungrounded_shown']} of {turns}"),
         ("First attempts that needed repair", f"{summary['repaired']} of {turns}"),
         ("Valid structured output", _percent(summary["structured"], turns)),
@@ -258,7 +323,8 @@ def to_markdown(summary: dict[str, Any], report: Report, calls: dict[str, int] |
             ("Provider errors", str(summary["errors"])),
         ]
     lines = ["| Measure | Result |", "|---|---|", *(f"| {a} | {b} |" for a, b in rows)]
-    failures = [o for o in [*report.tools, *(o for _, o in report.refusals)] if not o.passed]
+    everything = [*report.tools, *(o for _, o in report.refusals), *(o for _, o in report.outreach)]
+    failures = [o for o in everything if not o.passed]
     if failures:
         lines += ["", "Failures:", ""]
         for outcome in failures:
@@ -272,7 +338,10 @@ def to_markdown(summary: dict[str, Any], report: Report, calls: dict[str, int] |
 def estimate() -> int:
     judged = sum(c.judged for c in TOOL_CASES)
     return round(
-        len(TOOL_CASES) * CALLS_PER_TOOL_CASE + len(REFUSAL_CASES) * CALLS_PER_REFUSAL + judged
+        len(TOOL_CASES) * CALLS_PER_TOOL_CASE
+        + len(REFUSAL_CASES) * CALLS_PER_REFUSAL
+        + len(OUTREACH_CASES) * CALLS_PER_OUTREACH
+        + judged
     )
 
 
@@ -348,6 +417,7 @@ def main() -> int:
     failed_plumbing = not live and (
         summary["args_right"] < summary["tool_cases"]
         or summary["refusals_passed"] < summary["refusal_cases"]
+        or summary["outreach_passed"] < summary["outreach_cases"]
     )
     return 1 if failed_grounding or failed_plumbing else 0
 

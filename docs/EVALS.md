@@ -187,6 +187,40 @@ Paired differences on the same cases; * marks an interval that excludes zero.
 | relevance 1.5, skills 0.3, preferences 0.2 | 0.769 | 0.846 | 0.897 | 0.827 | 0.743 | 0.949 |
 <!-- retrieval:end -->
 
+## Taste feature, offline simulation
+
+`python -m evals.taste` (part of `make eval`). The students are simulated: each has a profile and
+five saved postings, four from one role family and one from another. One saved posting is hidden at
+a time, the taste vector is built from the other four, and the hidden posting's rank among all
+others is compared with and without the feature. This checks that the mechanism moves the right
+postings up. It says nothing about real students, who save for reasons a generator does not have.
+
+How to read it: at the weight set before the run (0.10, the same as the profile weight) the effect is
+small. MRR improves by 0.010 with an interval that just touches zero, and hit@10 does not change
+beyond noise. The profile already carries most of what four saved postings from one family say.
+Larger weights help more in the sensitivity table, but choosing the weight from that table would be
+tuning on the test, so 0.10 stays and the feature is reported as a modest one. It is switchable
+(`rerank.taste = 0` or `taste.enabled = false`), and without events it changes nothing.
+
+<!-- taste:start -->
+Simulated students, not real ones: 52 students, 5 saved postings each (four from one role family, one from another), 260 leave-one-out trials over 156 synthetic postings. Ranking with no query, as on the home page. Taste weight 0.1, set before this was run.
+
+| Ranking | MRR | hit@5 | hit@10 | median rank |
+|---|---|---|---|---|
+| Profile only | 0.166 | 0.254 | 0.392 | 19 |
+| Profile + taste | 0.176 | 0.254 | 0.400 | 16 |
+
+Paired change: MRR +0.010 [+0.00, +0.02], hit@10 +0.008 [-0.01, +0.02] (bootstrap 95%, trials resampled).
+
+Sensitivity to the weight (for reading only; the weight was not chosen from it):
+
+| Taste weight | MRR | hit@10 |
+|---|---|---|
+| 0.05 | 0.174 | 0.388 |
+| 0.2 | 0.183 | 0.435 |
+| 0.3 | 0.187 | 0.465 |
+<!-- taste:end -->
+
 ## Cross-encoder experiment
 
 <!-- cross-encoder:start -->
@@ -235,15 +269,18 @@ so a perfect score here says nothing about a model.
 | Refusals: unknown company | 3 of 3 |
 | Refusals: other students | 3 of 3 |
 | Refusals: prompt injection | 1 of 1 |
-| Answers shown with an ungrounded posting | 0 of 38 |
-| First attempts that needed repair | 0 of 38 |
-| Valid structured output | 38 of 38 (100%) |
-| Structured at the first attempt | 38 of 38 |
-| Structured after one repair | 0 of 38 |
-| Built by code from text or tool results | 0 of 38 |
+| Drafts: right tool, checked draft shown | 9 of 9 (100%) |
+| Drafts: tempting requests with nothing invented shown | 5 of 5 |
+| Drafts stopped by the fabrication check | 0 |
+| Answers shown with an ungrounded posting | 0 of 47 |
+| First attempts that needed repair | 0 of 47 |
+| Valid structured output | 47 of 47 (100%) |
+| Structured at the first attempt | 47 of 47 |
+| Structured after one repair | 0 of 47 |
+| Built by code from text or tool results | 0 of 47 |
 | Requests to resend plain text as structured | 0 |
-| Model calls per turn (mean) | 1.82 |
-| Tokens per turn (mean) | 711 |
+| Model calls per turn (mean) | 1.85 |
+| Tokens per turn (mean) | 849 |
 <!-- agent-mock:end -->
 
 ### Live mode

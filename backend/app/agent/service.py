@@ -60,6 +60,7 @@ def message_out(
         notice=meta.get("notice"),
         stopped=meta.get("stopped", False),
         feedback=feedback,
+        draft=meta.get("draft"),
         created_at=message.created_at,
     )
 
@@ -173,6 +174,7 @@ def _answer(
         system_prompt(ctx.today, facts, session.summary), history, message.content
     )
     emit({"type": "status", "text": "Thinking"})
+    started = time.perf_counter()
     result = run_turn(
         llm,
         ctx,
@@ -181,6 +183,7 @@ def _answer(
         emit=lambda text: emit({"type": "status", "text": text}),
         cancelled=cancel.is_set,
     )
+    latency_ms = int((time.perf_counter() - started) * 1000)
     sent = "" if result.stopped else _stream(result.answer, emit, cancel.is_set, pause)
     stopped = result.stopped or len(sent) < len(result.answer)
 
@@ -198,6 +201,10 @@ def _answer(
             "structured": result.structured,
             "answer_kind": result.kind,
             "format_repairs": result.format_repairs,
+            "fabrications_caught": result.fabrications_caught,
+            "cache_hits": result.cache_hits,
+            "latency_ms": latency_ms,
+            "draft": None if stopped or result.draft is None else result.draft.model_dump(),
             "iterations": result.iterations,
             "tokens": result.tokens,
         },
