@@ -1,5 +1,6 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Toaster, toast } from 'sonner';
 import { App } from '@/App';
 import { deadlineText, payText, placeText } from '@/lib/format';
 import { axeViolations, mockApi, renderPage, studentUser } from '@/test/render';
@@ -137,6 +138,84 @@ describe('student portal', () => {
         status: 'interview',
       }),
     );
+    expect(await axeViolations(container)).toEqual([]);
+  });
+
+  it('undoes a stage change from the toast', async () => {
+    // Toasts live in a module-level store; clear the ones earlier tests left behind.
+    toast.dismiss();
+    const calls = mockApi({
+      ...base,
+      'GET /applications': [
+        { id: 1, status: 'applied', notes: '', updated_at: '2031-01-01T00:00:00Z', job },
+      ],
+      'PUT /applications/3': {},
+    });
+    renderPage(
+      <>
+        <Toaster />
+        <App />
+      </>,
+      '/applications',
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'List' }));
+    screen.getByRole('combobox', { name: 'Stage for Backend Intern' }).focus();
+    await userEvent.keyboard('{Enter}');
+    await userEvent.click(await screen.findByRole('option', { name: 'Interview' }));
+    expect(await screen.findByText('Moved to Interview')).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Undo' }));
+    await waitFor(() => {
+      const puts = calls.filter((c) => c.key === 'PUT /applications/3');
+      expect(puts.map((c) => (c.body as { status: string }).status)).toEqual([
+        'interview',
+        'applied',
+      ]);
+    });
+  });
+
+  it('asks for more or fewer postings like this one, and undoes on a second press', async () => {
+    const calls = mockApi({
+      ...base,
+      'GET /jobs/3': {
+        job,
+        breakdown,
+        saved: false,
+        application: null,
+        similar: [],
+        reaction: null,
+      },
+      'PUT /jobs/3/reaction': { reaction: 'up' },
+    });
+    renderPage(<App />, '/jobs/3');
+    const more = await screen.findByRole('button', { name: 'More like this' });
+    expect(more).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(more);
+    await waitFor(() => expect(more).toHaveAttribute('aria-pressed', 'true'));
+    expect(calls.find((c) => c.key === 'PUT /jobs/3/reaction')?.body).toEqual({ reaction: 'up' });
+  });
+
+  it('downloads deadlines and makes a private calendar link once', async () => {
+    const calls = mockApi({
+      ...base,
+      'GET /applications': [],
+      'GET /calendar/feed': { active: false, created_at: null },
+      'POST /calendar/feed': {
+        active: true,
+        created_at: '2031-01-01T00:00:00Z',
+        url: 'https://example.test/api/calendar/feed/secret.ics',
+      },
+    });
+    const { container } = renderPage(<App />, '/applications');
+    expect(await screen.findByRole('link', { name: /Download .ics file/ })).toHaveAttribute(
+      'href',
+      '/api/calendar/deadlines.ics',
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Make a subscription link/ }));
+    expect(await screen.findByRole('textbox', { name: 'Subscription link' })).toHaveValue(
+      'https://example.test/api/calendar/feed/secret.ics',
+    );
+    expect(calls.some((c) => c.key === 'POST /calendar/feed')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Turn off the link' })).toBeVisible();
     expect(await axeViolations(container)).toEqual([]);
   });
 
