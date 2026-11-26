@@ -1,5 +1,6 @@
 """Shared dependencies: database session, current user and role guards."""
 
+import ipaddress
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
@@ -8,6 +9,7 @@ from fastapi import Depends, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.errors import Forbidden, Unauthenticated
 from app.core.security import SESSION_COOKIE, hash_token
 from app.db.models import Role, User, UserSession
@@ -59,9 +61,31 @@ def coordinator_only(user: CurrentUser) -> User:
 Coordinator = Annotated[User, Depends(coordinator_only)]
 
 
+def _trusted(peer: str) -> bool:
+    for entry in get_settings().trusted_proxies.split(","):
+        entry = entry.strip()
+        if not entry:
+            continue
+        try:
+            if ipaddress.ip_address(peer) in ipaddress.ip_network(entry, strict=False):
+                return True
+        except ValueError:
+            if peer == entry:
+                return True
+    return False
+
+
 def client_ip(request: Request) -> str:
+    """The address rate limits are keyed on.
+
+    X-Forwarded-For is written by whoever sends the request, so it is believed only when the
+    direct peer is the proxy. Caddy replaces the header with the real client address (it does
+    not pass on a client's own header unless that client is a trusted proxy), so its last entry is
+    the client. A request that reaches the API directly is keyed on its own peer address, and a
+    forged header changes nothing.
+    """
+    peer = request.client.host if request.client else "unknown"
     forwarded = request.headers.get("X-Forwarded-For", "")
-    if forwarded:
-        # The proxy is the only hop in front of the API, so its entry is the last one.
-        return forwarded.split(",")[-1].strip()
-    return request.client.host if request.client else "unknown"
+    if forwarded and _trusted(peer):
+        return forwarded.split(",")[-1].strip() or peer
+    return peer

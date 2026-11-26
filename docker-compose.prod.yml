@@ -24,6 +24,7 @@ services:
     logging: *logging
     environment: &prod-env
       COOKIE_SECURE: "1"
+      PUBLIC_URL: https://${SITE_ADDRESS:?Set SITE_ADDRESS to the public hostname in .env}
       SEED_DEMO: "0"
       DEV_EMAIL_DOMAINS: ""
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a strong POSTGRES_PASSWORD in .env}

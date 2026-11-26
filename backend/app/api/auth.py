@@ -8,11 +8,13 @@ from app.core.config import get_settings
 from app.core.errors import AppError, Conflict, Forbidden, Unauthenticated
 from app.core.security import (
     SESSION_COOKIE,
+    check_login_delay,
     check_rate_limit,
     clear_attempts,
     end_session,
     hash_password,
     hash_token,
+    pair_key,
     record_attempt,
     start_session,
     verify_password,
@@ -26,11 +28,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.post("/login", response_model=UserOut)
 def login(body: LoginIn, request: Request, response: Response, db: Db) -> User:
-    account_key, ip_key = f"account:{body.email}", f"ip:{client_ip(request)}"
-    check_rate_limit(db, account_key, ip_key)
+    address = client_ip(request)
+    pair, ip_key = pair_key(body.email, address), f"ip:{address}"
+    # One address may not spray many accounts, and one pair slows down after a few misses.
+    check_rate_limit(db, ip_key)
+    check_login_delay(db, pair)
     user = db.scalar(select(User).where(User.email == body.email))
     if not verify_password(user.password_hash if user else None, body.password):
-        record_attempt(db, account_key, ip_key)
+        record_attempt(db, pair, ip_key)
         raise Unauthenticated(
             "That email and password do not match. Check both and try again.",
             code="bad_credentials",
@@ -38,7 +43,7 @@ def login(body: LoginIn, request: Request, response: Response, db: Db) -> User:
     assert user is not None
     if not user.is_active:
         raise Forbidden("This account is inactive. Contact the CAPS office.", code="inactive")
-    clear_attempts(db, account_key)
+    clear_attempts(db, pair)
     start_session(db, user, response)
     return user
 
@@ -56,13 +61,17 @@ def register(body: RegisterIn, request: Request, response: Response, db: Db) -> 
             details=[{"field": "email", "message": f"Allowed addresses end in {allowed}."}],
         )
     record_attempt(db, ip_key)
+    # Hashed before the lookup, so an existing address costs the same time as a new one.
+    password_hash = hash_password(body.password)
     if db.scalar(select(User.id).where(User.email == body.email)):
-        raise Conflict(
-            "An account with this email already exists. Sign in instead.", code="email_taken"
+        raise AppError(
+            "We could not create an account with these details. If you already have an "
+            "account, sign in or ask the CAPS office to help.",
+            code="registration_failed",
         )
     user = User(
         email=body.email,
-        password_hash=hash_password(body.password),
+        password_hash=password_hash,
         full_name=body.full_name,
         role=Role.student,
     )

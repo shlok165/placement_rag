@@ -75,6 +75,42 @@ def clear_cookies(response: Response) -> None:
     response.delete_cookie(CSRF_COOKIE)
 
 
+def pair_key(email: str, address: str) -> str:
+    return f"pair:{email.lower()}:{address}"
+
+
+def login_delay(db: Session, key: str, now: datetime | None = None) -> int:
+    """Seconds left before this account and address pair may try again.
+
+    The first few failures are free; after that each one doubles the wait, up to a cap. The key is
+    the pair, so failures from one address never slow down the same account elsewhere: nobody can
+    lock a student out by guessing from their own machine.
+    """
+    settings = get_settings()
+    now = now or datetime.now(UTC)
+    since = now - timedelta(minutes=settings.login_window_minutes)
+    failures, last = db.execute(
+        select(func.count(), func.max(LoginAttempt.created_at)).where(
+            LoginAttempt.key_hash == hash_token(key), LoginAttempt.created_at > since
+        )
+    ).one()
+    extra = (failures or 0) - settings.login_free_attempts
+    if extra < 0 or last is None:
+        return 0
+    wait = min(2**extra, settings.login_max_delay_seconds)
+    return max(0, int(wait - (now - last).total_seconds() + 0.999))
+
+
+def check_login_delay(db: Session, key: str) -> None:
+    seconds = login_delay(db, key)
+    if seconds:
+        raise TooManyRequests(
+            f"Too many attempts. Please wait {seconds} seconds and try again.",
+            code="rate_limited",
+            details={"retry_after": seconds},
+        )
+
+
 def check_rate_limit(db: Session, *keys: str) -> None:
     settings = get_settings()
     since = datetime.now(UTC) - timedelta(minutes=settings.login_window_minutes)

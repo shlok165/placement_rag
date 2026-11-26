@@ -20,10 +20,19 @@ class Settings(BaseSettings):
     allowed_email_domains: str = "iitrpr.ac.in"
     dev_email_domains: str = ""
     cookie_secure: bool = False
+    # Address students reach the portal at, for links in calendar feeds. Empty: taken from the
+    # request, which is right for local use.
+    public_url: str = ""
     cors_origins: str = ""
     session_days: int = 7
     login_max_attempts: int = 8
     login_window_minutes: int = 15
+    # Failed sign-ins per account and address pair before each further try must wait.
+    login_free_attempts: int = 5
+    login_max_delay_seconds: int = 900
+    # Peers whose X-Forwarded-For header is believed: the proxy in front of the API. Networks or
+    # exact host names, comma separated. The default covers Docker and local networks.
+    trusted_proxies: str = "127.0.0.1/32,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
     max_upload_mb: int = 5
     student_daily_turns: int = 30
     coordinator_daily_turns: int = 200
