@@ -41,10 +41,21 @@ def clip(text: str, limit: int = MAX_MESSAGE_CHARS) -> str:
     return text if len(text) <= limit else text[:limit] + "\n[shortened]"
 
 
+ToolChoice = str | dict[str, Any] | None
+
+
 def prompt_hash(
-    model: str, messages: list[Message], tools: list[dict[str, Any]] | None, temperature: float
+    model: str,
+    messages: list[Message],
+    tools: list[dict[str, Any]] | None,
+    temperature: float,
+    tool_choice: ToolChoice = None,
 ) -> str:
-    payload = json.dumps([model, messages, tools, temperature], sort_keys=True, default=str)
+    parts: list[Any] = [model, messages, tools, temperature]
+    # Left out when it is the default, so answers cached before it existed still match.
+    if tool_choice not in (None, "auto"):
+        parts.append(tool_choice)
+    payload = json.dumps(parts, sort_keys=True, default=str)
     return hashlib.sha256(payload.encode()).hexdigest()
 
 
@@ -71,6 +82,8 @@ class LLMClient:
         self._transport = transport
         self._sleep = sleep
         self._checked_models: set[str] = set()
+        # Request parameters each model is listed with, read once with the model check.
+        self._parameters: dict[str, frozenset[str]] = {}
         self._model_lock = threading.Lock()
 
     # ------------------------------------------------------------------ public
@@ -87,20 +100,33 @@ class LLMClient:
         scope: str = "app",
         model: str | None = None,
         allow_fallback: bool = True,
+        tool_choice: ToolChoice = None,
     ) -> LLMResponse:
+        """`tool_choice` is sent only when the model is listed as supporting it."""
         messages = [self._clipped(m) for m in messages]
         if not self.settings.is_live:
             return self._mock(purpose, messages, tools, user_id, scope)
 
         model = model or self.settings.llm_model
-        key = prompt_hash(model, messages, tools, temperature)
+        requested = tool_choice if tools else None
+        key = prompt_hash(model, messages, tools, temperature, requested)
         cached = self._from_cache(key, purpose, user_id, scope, model)
         if cached:
             return cached
         try:
             self._check_model(model)
+            choice = requested if self.supports(model, "tool_choice") else None
             return self._live(
-                purpose, messages, tools, temperature, max_tokens, user_id, scope, model, key
+                purpose,
+                messages,
+                tools,
+                temperature,
+                max_tokens,
+                user_id,
+                scope,
+                model,
+                key,
+                choice,
             )
         except LLMError as exc:
             if not allow_fallback or isinstance(exc, LLMConfigError):
@@ -231,14 +257,25 @@ class LLMClient:
                     listed = reply.json().get("data", [])
             except (httpx.HTTPError, ValueError) as exc:
                 raise LLMError("The model list could not be read from the provider.") from exc
-            names = {str(entry.get("id")) for entry in listed}
-            names |= {str(alias) for entry in listed for alias in entry.get("aliases") or []}
-            if model not in names:
+            entry = next(
+                (
+                    e
+                    for e in listed
+                    if str(e.get("id")) == model or model in (e.get("aliases") or [])
+                ),
+                None,
+            )
+            if entry is None:
                 raise LLMConfigError(
                     "The model in LLM_MODEL is not offered by the provider any more. "
                     "Choose one from GET /v1/models."
                 )
+            self._parameters[model] = frozenset(map(str, entry.get("supported_parameters") or []))
             self._checked_models.add(model)
+
+    def supports(self, model: str, parameter: str) -> bool:
+        """Whether the model list says `model` accepts `parameter`. Unknown means no."""
+        return parameter in self._parameters.get(model, frozenset())
 
     def _live(
         self,
@@ -251,6 +288,7 @@ class LLMClient:
         scope: str,
         model: str,
         key: str,
+        tool_choice: ToolChoice = None,
     ) -> LLMResponse:
         body: dict[str, Any] = {
             "model": model,
@@ -260,7 +298,7 @@ class LLMClient:
         }
         if tools:
             body["tools"] = tools
-            body["tool_choice"] = "auto"
+            body["tool_choice"] = tool_choice or "auto"
 
         for attempt in range(MAX_RETRIES + 1):
             with self._sessions() as db:

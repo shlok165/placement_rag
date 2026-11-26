@@ -37,6 +37,7 @@ _HANDLERS = {
     "parse_resume": _parse_resume,
     "extract_memory": _extract_memory,
     "agent_turn": _agent_turn,
+    "agent_repair": _agent_turn,
 }
 
 

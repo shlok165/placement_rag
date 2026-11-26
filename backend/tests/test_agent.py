@@ -250,9 +250,15 @@ class Scripted:
     def __init__(self, *responses: LLMResponse) -> None:
         self.responses = list(responses)
         self.seen_tools: list[list[str]] = []
+        self.purposes: list[str] = []
+        self.choices: list[Any] = []
 
-    def chat(self, purpose: str, messages: Any, *, tools: Any = None, **_: Any) -> LLMResponse:
+    def chat(
+        self, purpose: str, messages: Any, *, tools: Any = None, tool_choice: Any = None, **_: Any
+    ) -> LLMResponse:
         self.seen_tools.append([t["function"]["name"] for t in tools])
+        self.purposes.append(purpose)
+        self.choices.append(tool_choice)
         return self.responses.pop(0) if len(self.responses) > 1 else self.responses[0]
 
 
@@ -325,9 +331,74 @@ def test_token_limit_forces_an_answer(ctx: ToolContext, jobs: dict[str, Any]) ->
     assert model.seen_tools[1] == ["final_answer"]
 
 
-def test_plain_text_reply_is_accepted_but_not_counted_as_structured(ctx: ToolContext) -> None:
-    result = turn(Scripted(LLMResponse(content="Hello there.")), ctx)
-    assert (result.answer, result.structured) == ("Hello there.", False)
+def test_every_call_requires_a_tool(ctx: ToolContext, jobs: dict[str, Any]) -> None:
+    model = Scripted(
+        call("search_jobs", query="backend"), call("final_answer", answer_markdown="ok")
+    )
+    result = turn(model, ctx)
+    assert model.choices == ["required", "required"]
+    assert model.purposes == ["agent_turn", "agent_turn"]
+    assert result.kind == "structured"
+
+
+def test_plain_text_is_asked_for_once_in_structured_form(ctx: ToolContext) -> None:
+    model = Scripted(
+        LLMResponse(content="Hello there."), call("final_answer", answer_markdown="Hi.")
+    )
+    result = turn(model, ctx)
+    assert (result.answer, result.structured, result.kind) == ("Hi.", True, "repaired")
+    assert result.format_repairs == 1
+    assert model.purposes == ["agent_turn", "agent_repair"]
+    assert model.seen_tools[1] == ["final_answer"]
+    assert model.choices[1] == {"type": "function", "function": {"name": "final_answer"}}
+
+
+def test_stubborn_plain_text_is_wrapped_by_code(ctx: ToolContext) -> None:
+    model = Scripted(LLMResponse(content="Hello there."))
+    result = turn(model, ctx)
+    assert (result.answer, result.structured, result.kind) == ("Hello there.", False, "fallback")
+    assert result.format_repairs == 1
+    assert len(model.purposes) == 2
+
+
+def test_wrapped_plain_text_is_still_grounded(ctx: ToolContext, jobs: dict[str, Any]) -> None:
+    job_id = jobs["backend"].id
+    model = Scripted(
+        call("get_job", job_id=job_id),
+        LLMResponse(content=f"See [#{job_id}]."),
+        LLMResponse(content="Also [#999999] is great."),
+    )
+    result = turn(model, ctx)
+    assert "999999" not in result.answer
+    assert result.kind == "fallback"
+    assert [c.job_id for c in result.citations] == [job_id]
+
+
+@pytest.mark.parametrize("broken", ['{"answer_markdown": "Hi', "```json\n{oops}\n```", "{}"])
+def test_broken_json_is_never_shown(ctx: ToolContext, broken: str) -> None:
+    result = turn(Scripted(LLMResponse(content=broken)), ctx)
+    assert result.answer
+    assert "{" not in result.answer
+    assert result.kind == "fallback"
+
+
+def test_broken_json_is_repaired_when_the_model_corrects_it(ctx: ToolContext) -> None:
+    model = Scripted(
+        LLMResponse(content='{"answer_markdown": '), call("final_answer", answer_markdown="Hi.")
+    )
+    result = turn(model, ctx)
+    assert (result.answer, result.kind) == ("Hi.", "repaired")
+    assert model.purposes[1] == "agent_repair"
+
+
+def test_a_grounding_repair_is_logged_as_a_repair(ctx: ToolContext) -> None:
+    model = Scripted(
+        call("final_answer", answer_markdown="Apply to [#4242]."),
+        call("final_answer", answer_markdown="I do not have that."),
+    )
+    result = turn(model, ctx)
+    assert model.purposes == ["agent_turn", "agent_repair"]
+    assert result.kind == "repaired"
 
 
 def test_json_reply_counts_as_structured(ctx: ToolContext) -> None:

@@ -196,6 +196,8 @@ def _answer(
             "stopped": stopped,
             "mode": result.mode,
             "structured": result.structured,
+            "answer_kind": result.kind,
+            "format_repairs": result.format_repairs,
             "iterations": result.iterations,
             "tokens": result.tokens,
         },

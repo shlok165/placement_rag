@@ -70,8 +70,18 @@ Checked against the live OpenAPI document (`/openapi.json`, version 0.3.0) and `
   a job, so there is one consent pattern to learn.
 - **Over budget means mock, with a notice.** When a cap is hit the agent falls back to the
   rule-based assistant, which is still grounded in real postings, and the UI says so.
-- **No forced tool choice.** Providers differ in support for it, so the loop accepts a plain-text
-  reply, runs the same checks and records that it was not structured.
+- **Forced tool choice where the model supports it.** The model list carries
+  `supported_parameters`; the client reads it with the model check, once per process, and sends
+  `tool_choice: "required"` (or the named `final_answer` function for a repair) only when
+  `tool_choice` is listed. Otherwise it sends `auto`. Round 1 never forced it, and 12 of 37 live
+  turns came back as plain text.
+- **One repair for plain text, then code.** A grounded plain-text reply gets one request to resend
+  it through `final_answer`. If it is still plain text, code wraps it after the same grounding and
+  prediction checks. Broken JSON is never shown as prose. Each stored answer records
+  `answer_kind`: `structured`, `repaired` or `fallback`. Repair calls are logged in `llm_calls`
+  with the purpose `agent_repair`.
+- **The cache key includes a forced tool choice** but not the default, so earlier cached answers
+  still match.
 
 ## Evals
 

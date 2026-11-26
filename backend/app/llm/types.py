@@ -5,7 +5,10 @@ from pydantic import BaseModel, Field
 from app.core.errors import AppError
 
 Message = dict[str, Any]
-Purpose = Literal["parse_job", "parse_resume", "agent_turn", "extract_memory", "judge"]
+# agent_repair: an agent call that re-asks for a structured or grounded answer.
+Purpose = Literal[
+    "parse_job", "parse_resume", "agent_turn", "agent_repair", "extract_memory", "judge"
+]
 
 
 class ToolCall(BaseModel):

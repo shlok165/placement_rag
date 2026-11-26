@@ -210,6 +210,10 @@ def summarise(report: Report) -> dict[str, Any]:
         "ungrounded_shown": sum(o.ungrounded for o in outcomes),
         "repaired": sum(r.repaired for r in results),
         "structured": sum(r.structured for r in results),
+        "kinds": {
+            k: sum(r.kind == k for r in results) for k in ("structured", "repaired", "fallback")
+        },
+        "format_repairs": sum(r.format_repairs for r in results),
         "mean_iterations": round(sum(r.iterations for r in results) / max(1, len(results)), 2),
         "mean_tokens": round(sum(r.tokens for r in results) / max(1, len(results))),
         "graded": len(grades),
@@ -235,6 +239,10 @@ def to_markdown(summary: dict[str, Any], report: Report, calls: dict[str, int] |
         ("Answers shown with an ungrounded posting", f"{summary['ungrounded_shown']} of {turns}"),
         ("First attempts that needed repair", f"{summary['repaired']} of {turns}"),
         ("Valid structured output", _percent(summary["structured"], turns)),
+        ("Structured at the first attempt", f"{summary['kinds']['structured']} of {turns}"),
+        ("Structured after one repair", f"{summary['kinds']['repaired']} of {turns}"),
+        ("Built by code from text or tool results", f"{summary['kinds']['fallback']} of {turns}"),
+        ("Requests to resend plain text as structured", str(summary["format_repairs"])),
         ("Model calls per turn (mean)", str(summary["mean_iterations"])),
         ("Tokens per turn (mean)", f"{summary['mean_tokens']:,}"),
     ]

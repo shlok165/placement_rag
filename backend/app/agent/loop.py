@@ -3,7 +3,7 @@
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import ValidationError
 
@@ -17,7 +17,17 @@ from app.llm.types import LLMError, LLMResponse, Message, ToolCall
 logger = logging.getLogger("app.agent")
 
 MAX_REPAIRS = 1
+MAX_FORMAT_REPAIRS = 1
 MAX_CALLS_PER_STEP = 4
+# Every model call must be a tool call; the answer itself is the final_answer tool.
+REQUIRE_TOOL = "required"
+ONLY_FINAL = {"type": "function", "function": {"name": "final_answer"}}
+FORMAT_REPAIR = (
+    "Your last reply was plain text, so it could not be checked and shown. Call final_answer now "
+    "with that answer in answer_markdown. Keep every [#id] mark and add nothing new."
+)
+
+AnswerKind = Literal["structured", "repaired", "fallback"]
 
 NOTICES = {
     "budget": "The live assistant has used its budget for now, so this answer comes from built-in "
@@ -37,6 +47,10 @@ class TurnResult:
     # The model produced a valid structured answer that passed every check.
     structured: bool = False
     repaired: bool = False
+    # structured: valid at once. repaired: valid after one request to fix it. fallback: built by
+    # code, from plain text or from tool results, and checked the same way.
+    kind: AnswerKind = "fallback"
+    format_repairs: int = 0
     iterations: int = 0
     tokens: int = 0
     mode: str = "mock"
@@ -65,9 +79,11 @@ def _from_text(text: str) -> tuple[FinalAnswerArgs | None, bool]:
         return FinalAnswerArgs.model_validate(extract_json(text)), True
     except (ValueError, ValidationError):
         pass
-    if not text.strip():
+    stripped = text.strip()
+    # Broken JSON is never shown as if it were prose.
+    if not stripped or stripped.startswith(("{", "```")):
         return None, False
-    return FinalAnswerArgs(answer_markdown=text.strip()[:4000]), False
+    return FinalAnswerArgs(answer_markdown=stripped[:4000]), False
 
 
 def _assistant_message(response: LLMResponse) -> Message:
@@ -98,16 +114,21 @@ def run_turn(
     allow_fallback: bool = True,
 ) -> TurnResult:
     messages = list(messages)
-    tokens = repairs = 0
+    tokens = repairs = format_repairs = 0
     notice: str | None = None
     mode = "mock"
     modes: list[str] = []
     step = 0
+    # What the next call is asked to fix, if anything. Such calls are logged as agent_repair.
+    repairing: Literal["format", "grounding"] | None = None
 
     def finish(result: TurnResult) -> TurnResult:
         result.iterations, result.tokens = step, tokens
         result.notice = result.notice or notice
-        result.repaired = repairs > 0
+        result.repaired = repairs + format_repairs > 0
+        result.format_repairs = format_repairs
+        if result.structured:
+            result.kind = "repaired" if result.repaired else "structured"
         # A turn counts as live if any of its calls reached the provider.
         result.mode = next((m for m in ("live", "cache") if m in modes), mode)
         return result
@@ -128,10 +149,11 @@ def run_turn(
         if cancelled():
             return finish(TurnResult("", stopped=True))
         last = step == settings.agent_max_iterations or tokens > settings.agent_max_tokens_per_turn
-        specs = tool_specs(["final_answer"] if last else None)
+        only_final = last or repairing == "format"
+        specs = tool_specs(["final_answer"] if only_final else None)
         try:
             response = llm.chat(
-                "agent_turn",
+                "agent_repair" if repairing else "agent_turn",
                 messages,
                 tools=specs,
                 temperature=0.0,
@@ -140,6 +162,7 @@ def run_turn(
                 scope=scope,
                 model=model,
                 allow_fallback=allow_fallback,
+                tool_choice=ONLY_FINAL if only_final else REQUIRE_TOOL,
             )
         except LLMError as exc:
             logger.warning("agent call failed", extra={"code": exc.code})
@@ -150,19 +173,31 @@ def run_turn(
             return finish(result)
         tokens += response.input_tokens + response.output_tokens
         modes.append(response.mode)
+        repairing = None
         if response.degraded:
             notice = NOTICES[response.degraded]
 
         if not response.tool_calls:
-            plain, structured = _from_text(response.content)
-            outcome = check(plain, structured) if plain else ["the answer was empty"]
+            plain, is_json = _from_text(response.content)
+            outcome = check(plain, is_json) if plain else ["the answer was empty or broken JSON"]
+            said = {"role": "assistant", "content": response.content or ""}
             if isinstance(outcome, TurnResult):
+                if is_json:
+                    return finish(outcome)
+                if format_repairs < MAX_FORMAT_REPAIRS and not last:
+                    # Grounded, but not structured: ask once for the structured form.
+                    format_repairs += 1
+                    repairing = "format"
+                    messages += [said, {"role": "user", "content": FORMAT_REPAIR}]
+                    continue
+                # Still plain text: wrapped by code, after the same checks.
                 return finish(outcome)
             if repairs >= MAX_REPAIRS or last:
                 break
             repairs += 1
+            repairing = "grounding"
             messages += [
-                {"role": "assistant", "content": response.content or ""},
+                said,
                 {
                     "role": "user",
                     "content": f"Not shown to the student because {'; '.join(outcome)}. "
@@ -184,6 +219,7 @@ def run_turn(
                     done = outcome
                     break
                 repairs += 1
+                repairing = "grounding"
                 reply = {"error": f"Not shown to the student because {'; '.join(outcome)}."}
                 content = str(reply)
             else:
@@ -196,6 +232,7 @@ def run_turn(
         if repairs > MAX_REPAIRS:
             break
 
+    # Nothing usable came back: an answer built from the tool results alone.
     result = fallback_answer(ctx)
     if step >= settings.agent_max_iterations and repairs <= MAX_REPAIRS:
         result.notice = NOTICES["limit"]

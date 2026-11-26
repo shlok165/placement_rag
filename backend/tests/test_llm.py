@@ -33,10 +33,11 @@ class Provider:
     def __init__(self, *replies: httpx.Response | Exception) -> None:
         self.replies = list(replies) or [ok()]
         self.requests: list[httpx.Request] = []
+        self.models: dict[str, Any] = MODELS
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         if request.url.path == "/v1/models":
-            return httpx.Response(200, json=MODELS)
+            return httpx.Response(200, json=self.models)
         self.requests.append(request)
         reply = self.replies[0] if len(self.replies) == 1 else self.replies.pop(0)
         if isinstance(reply, Exception):
@@ -248,6 +249,50 @@ def test_tool_calls_are_parsed(make: Factory) -> None:
     response = client.chat("agent_turn", HELLO, tools=[{"type": "function"}])
     assert response.tool_calls[0].name == "get_job"
     assert json.loads(provider.requests[0].content)["tool_choice"] == "auto"
+
+
+TOOLS = [{"type": "function", "function": {"name": "final_answer"}}]
+CAPABLE = {"data": [{"id": "model-a", "supported_parameters": ["tools", "tool_choice"]}]}
+
+
+def test_tool_choice_is_sent_when_the_model_lists_it(make: Factory) -> None:
+    client, provider, _ = make()
+    provider.models = CAPABLE
+    client.chat("agent_turn", HELLO, tools=TOOLS, tool_choice="required")
+    assert json.loads(provider.requests[0].content)["tool_choice"] == "required"
+    assert client.supports("model-a", "tool_choice")
+
+
+def test_tool_choice_is_dropped_when_the_model_does_not_list_it(make: Factory) -> None:
+    client, provider, _ = make()
+    client.chat("agent_turn", HELLO, tools=TOOLS, tool_choice="required")
+    assert json.loads(provider.requests[0].content)["tool_choice"] == "auto"
+    assert not client.supports("model-a", "tool_choice")
+
+
+def test_the_model_list_is_read_once(make: Factory) -> None:
+    seen: list[str] = []
+    client, provider, _ = make()
+    provider.models = CAPABLE
+    original = provider.__call__
+
+    def counting(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.path)
+        return original(request)
+
+    client._transport = httpx.MockTransport(counting)
+    for text in ("one", "two"):
+        client.chat("agent_turn", [{"role": "user", "content": text}], tools=TOOLS)
+    assert seen.count("/v1/models") == 1
+
+
+def test_a_forced_choice_is_cached_apart_from_auto(make: Factory) -> None:
+    client, provider, _ = make()
+    provider.models = CAPABLE
+    client.chat("agent_turn", HELLO, tools=TOOLS)
+    client.chat("agent_turn", HELLO, tools=TOOLS, tool_choice="required")
+    client.chat("agent_turn", HELLO, tools=TOOLS, tool_choice="required")
+    assert len(provider.requests) == 2
 
 
 def test_unreadable_reply_is_an_error(make: Factory) -> None:

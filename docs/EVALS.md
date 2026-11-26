@@ -170,6 +170,10 @@ so a perfect score here says nothing about a model.
 | Answers shown with an ungrounded posting | 0 of 38 |
 | First attempts that needed repair | 0 of 38 |
 | Valid structured output | 38 of 38 (100%) |
+| Structured at the first attempt | 38 of 38 |
+| Structured after one repair | 0 of 38 |
+| Built by code from text or tool results | 0 of 38 |
+| Requests to resend plain text as structured | 0 |
 | Model calls per turn (mean) | 1.82 |
 | Tokens per turn (mean) | 711 |
 <!-- agent-mock:end -->
