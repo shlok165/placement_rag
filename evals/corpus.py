@@ -1,5 +1,6 @@
 """Load the synthetic corpus into a database."""
 
+from collections.abc import Callable
 from datetime import date, datetime, time
 from typing import Any
 
@@ -10,8 +11,8 @@ from app.db.models import EvalCase, EvalSet, Job, JobStatus
 from app.embeddings import embed_passages
 from app.ingest.duplicates import hash_text
 from app.ingest.indexing import index_job, job_passage
-from evals.cases import PROFILES, build_cases
-from evals.dataset import SyntheticJob, generate_jobs
+from evals.cases import PROFILES, Case, build_cases
+from evals.dataset import MAIN, SyntheticJob, Variant, generate_jobs
 from evals.harness import LabelledCase
 
 SET_NAME = "Synthetic retrieval set"
@@ -22,10 +23,18 @@ def _hash(key: str) -> str:
 
 
 def load_jobs(
-    db: Session, reference: date, created_by: int | None = None, limit: int | None = None
+    db: Session,
+    reference: date,
+    created_by: int | None = None,
+    limit: int | None = None,
+    *,
+    variant: Variant = MAIN,
+    transform: Callable[[SyntheticJob], SyntheticJob] | None = None,
 ) -> dict[str, int]:
     """Insert missing synthetic jobs. Returns dataset key -> job id."""
-    rows: list[SyntheticJob] = generate_jobs(reference)[:limit]
+    rows: list[SyntheticJob] = generate_jobs(reference, variant)[:limit]
+    if transform:
+        rows = [transform(r) for r in rows]
     by_hash = {_hash(r.key): r for r in rows}
     existing = {
         content_hash: job_id
@@ -54,11 +63,17 @@ def load_jobs(
     return {row.key: ids[h] for h, row in by_hash.items()}
 
 
-def labelled_cases(ids: dict[str, int], reference: date) -> list[LabelledCase]:
-    jobs = [j for j in generate_jobs(reference) if j.key in ids]
+def labelled_cases(
+    ids: dict[str, int],
+    reference: date,
+    variant: Variant = MAIN,
+    builder: Callable[[list[SyntheticJob]], list[Case]] = build_cases,
+) -> list[LabelledCase]:
+    """Labels always come from the clean generator output, never from transformed text."""
+    jobs = [j for j in generate_jobs(reference, variant) if j.key in ids]
     return [
         LabelledCase(c.query, PROFILES[c.profile], {ids[k] for k in c.relevant}, c.slice)
-        for c in build_cases(jobs)
+        for c in builder(jobs)
     ]
 
 

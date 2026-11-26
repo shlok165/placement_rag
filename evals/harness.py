@@ -1,5 +1,6 @@
 """Runs retrieval cases against a database and scores them."""
 
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
@@ -14,6 +15,9 @@ from app.search.matching import Preferences
 from app.search.profiles import profile_passage
 from app.search.ranking import Profile
 from evals.metrics import hit_at, mean, ndcg_at, recall_at, reciprocal_rank
+from evals.stats import interval, paired_difference
+
+INTERVAL_METRICS = ("hit@1", "hit@5", "mrr", "ndcg@10")
 
 
 @dataclass
@@ -69,8 +73,10 @@ def evaluate(
     settings = config.search_config()
     profiles: dict[str, Profile] = {}
     rows: list[dict[str, Any]] = []
+    elapsed = 0.0
     for case in cases:
         profile = make_profile(case.profile, profiles) if config.personalize else None
+        started = time.perf_counter()
         results = search(
             db,
             case.query,
@@ -80,6 +86,7 @@ def evaluate(
             limit=50,
             today=today,
         )
+        elapsed += time.perf_counter() - started
         ranked = [h.job.id for h in results.hits]
         if on_case:
             on_case(case, ranked)
@@ -101,4 +108,26 @@ def evaluate(
         "cases": len(rows),
         "overall": _summary(rows),
         "slices": {s: _summary([r for r in rows if r["slice"] == s]) for s in slices},
+        "ms_per_query": round(elapsed * 1000 / max(1, len(rows)), 1),
+        # Per-case scores, in case order, for intervals and paired comparisons.
+        "per_case": rows,
     }
+
+
+def intervals(result: dict[str, Any]) -> dict[str, tuple[float, float]]:
+    rows = result["per_case"]
+    return {k: interval([r[k] for r in rows]) for k in INTERVAL_METRICS}
+
+
+def compare(
+    result: dict[str, Any], base: dict[str, Any], metric: str
+) -> tuple[float, float, float]:
+    """Paired difference in `metric` between two runs over the same cases."""
+    return paired_difference(
+        [r[metric] for r in result["per_case"]], [r[metric] for r in base["per_case"]]
+    )
+
+
+def stored(result: dict[str, Any]) -> dict[str, Any]:
+    """The result without per-case rows, for the database."""
+    return {k: v for k, v in result.items() if k != "per_case"}

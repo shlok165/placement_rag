@@ -477,27 +477,46 @@ def _pay(rng: random.Random, job_type: str) -> tuple[int, int]:
     return low, low + rng.choice((2, 4, 6)) * 100_000
 
 
-def generate_jobs(reference: date = REFERENCE_DATE) -> list[SyntheticJob]:
-    rng = random.Random(SEED)
+@dataclass(frozen=True)
+class Variant:
+    """What a generator run draws from. The default reproduces the main corpus exactly."""
+
+    seed: int = SEED
+    per_family: int = JOBS_PER_FAMILY
+    prefix: str = ""
+    # Per family: (titles, work sentences). Missing families keep their own.
+    text: dict[str, tuple[tuple[str, ...], tuple[str, ...]]] = field(default_factory=dict)
+    sectors: dict[str, str] = field(default_factory=lambda: SECTORS)
+    cities: tuple[str, ...] = CITIES
+    family_sectors: dict[str, tuple[str, ...]] = field(default_factory=lambda: FAMILY_SECTORS)
+    office_sectors: tuple[str, ...] = OFFICE_SECTORS
+
+
+MAIN = Variant()
+
+
+def generate_jobs(reference: date = REFERENCE_DATE, variant: Variant = MAIN) -> list[SyntheticJob]:
+    rng = random.Random(variant.seed)
     jobs: list[SyntheticJob] = []
     for family in FAMILIES:
-        sectors = FAMILY_SECTORS.get(family.key, OFFICE_SECTORS)
-        for index in range(JOBS_PER_FAMILY):
+        titles, work_lines = variant.text.get(family.key, (family.titles, family.work))
+        sectors = variant.family_sectors.get(family.key, variant.office_sectors)
+        for index in range(variant.per_family):
             sector = sectors[(index + rng.randrange(len(sectors))) % len(sectors)]
-            title = family.titles[index % len(family.titles)]
+            title = titles[index % len(titles)]
             is_full_time = "Intern" not in title or rng.random() < family.full_time_share * 0.3
             job_type = "full-time" if is_full_time else "internship"
             if job_type == "full-time":
                 title = title.replace(" Intern", " Associate")
             company = f"{rng.choice(COMPANY_STEMS)} {COMPANY_SUFFIX[sector]}"
             remote = family.key in REMOTE_FAMILIES and rng.random() < 0.3
-            location = "" if remote and rng.random() < 0.5 else rng.choice(CITIES)
+            location = "" if remote and rng.random() < 0.5 else rng.choice(variant.cities)
             skills = [*family.core, *rng.sample(family.extra, k=min(3, len(family.extra)))]
             low, high = _pay(rng, job_type)
             months = rng.choice((2, 3, 6)) if job_type == "internship" else None
-            work = rng.sample(family.work, k=3)
-            key = f"{family.key}-{index + 1}"
-            description = " ".join([SECTORS[sector], *work, rng.choice(CLOSERS)])
+            work = rng.sample(work_lines, k=3)
+            key = f"{variant.prefix}{family.key}-{index + 1}"
+            description = " ".join([variant.sectors[sector], *work, rng.choice(CLOSERS)])
             year = rng.choice(("pre-final year", "final year", "any year"))
             jobs.append(
                 SyntheticJob(

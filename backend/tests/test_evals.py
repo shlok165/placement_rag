@@ -5,16 +5,22 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.db.models import EvalCase, EvalRun
+from app.db.models import EvalCase, EvalRun, Job
 from app.ingest import tasks
 from app.llm.client import get_llm
+from app.search import cross
+from app.search.config import CrossEncoderConfig, get_search_config
 from evals import agent
 from evals.agent_cases import REFUSAL_CASES, TOOL_CASES
+from evals.blind.cases import build_blind_cases
+from evals.blind.dataset import BLIND
 from evals.cases import build_cases
 from evals.corpus import labelled_cases, load_eval_set, load_jobs
 from evals.dataset import REFERENCE_DATE, generate_jobs
 from evals.harness import STANDARD_CONFIGS, evaluate
+from evals.noise import noisy
 from evals.report import update_section
+from evals.stats import interval, paired_difference
 from tests.conftest import Api
 from tests.test_chat import ask, chatter, fast_stream, final, new_session
 from tests.test_search import add
@@ -36,6 +42,66 @@ def test_cases_are_labelled_and_point_at_real_jobs() -> None:
     assert len(cases) >= 60
     assert all(case.relevant and set(case.relevant) <= keys for case in cases)
     assert {c.slice for c in cases} == {"topic", "constraint", "personal"}
+
+
+def test_blind_set_is_separate_and_deterministic() -> None:
+    main, blind = generate_jobs(), generate_jobs(variant=BLIND)
+    assert [j.fields for j in blind] == [j.fields for j in generate_jobs(variant=BLIND)]
+    assert not {j.key for j in main} & {j.key for j in blind}
+    assert not {j.fields["title"] for j in main} & {j.fields["title"] for j in blind}
+    assert not {j.fields["description"] for j in main} & {j.fields["description"] for j in blind}
+    main_queries = {c.query for c in build_cases(main)}
+    blind_cases = build_blind_cases(blind)
+    assert len(blind_cases) >= 40
+    assert not main_queries & {c.query for c in blind_cases}
+
+
+def test_noise_is_deterministic_and_keeps_labels() -> None:
+    jobs = generate_jobs()
+    first, second = [noisy(j) for j in jobs], [noisy(j) for j in jobs]
+    assert [j.fields for j in first] == [j.fields for j in second]
+    assert any(j.fields["title"] != c.fields["title"] for j, c in zip(first, jobs, strict=True))
+    assert all(
+        (j.key, j.family, j.sector) == (c.key, c.family, c.sector)
+        for j, c in zip(first, jobs, strict=True)
+    )
+    assert noisy(jobs[0]).fields["description"].endswith("friends!!")
+
+
+def test_bootstrap_interval_contains_the_mean_and_is_stable() -> None:
+    values = [1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 1.0, 0.0]
+    low, high = interval(values)
+    assert low <= sum(values) / len(values) <= high
+    assert interval(values) == (low, high)
+    assert interval([1.0] * 5) == (1.0, 1.0)
+
+
+def test_paired_difference_sees_a_consistent_gain() -> None:
+    base = [0.2, 0.5, 0.1, 0.7, 0.4, 0.3, 0.6, 0.2]
+    better = [v + 0.1 for v in base]
+    diff, low, _ = paired_difference(better, base)
+    assert diff == pytest.approx(0.1)
+    assert low > 0
+    with pytest.raises(ValueError):
+        paired_difference([1.0], [1.0, 2.0])
+
+
+def test_cross_encoder_is_off_by_default() -> None:
+    assert get_search_config().cross_encoder.enabled is False
+
+
+def test_cross_encoder_reorders_only_the_head(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Fake:
+        def rerank(self, query: str, texts: list[str]) -> list[float]:
+            return [float(len(t)) for t in texts]
+
+    monkeypatch.setattr(cross, "_model", lambda _: Fake())
+    pool = {
+        i: Job(id=i, title="t" * i, company="c", skills=[], description="") for i in range(1, 5)
+    }
+    ranked = [(1, 0.9), (2, 0.8), (3, 0.7), (4, 0.1)]
+    config = CrossEncoderConfig(enabled=True, top_n=3)
+    assert cross.reorder("q", ranked, pool, config) == [(3, 0.9), (2, 0.8), (1, 0.7), (4, 0.1)]
 
 
 def test_agent_suites_meet_the_required_size() -> None:

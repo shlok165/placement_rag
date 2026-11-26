@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Job
 from app.embeddings import embed_query
 from app.search.config import SearchConfig, get_search_config
+from app.search.cross import reorder
 from app.search.fusion import fuse
 from app.search.ranking import Profile, score_job
 from app.search.retrieval import Filters, conditions, keyword, semantic
@@ -94,8 +95,10 @@ def search(
 
     if query:
         ranked, top_similarity = _candidates(db, query, clauses, config, mode)
+        pool = _load(db, [job_id for job_id, _ in ranked])
+        if config.cross_encoder.enabled:
+            ranked = reorder(query, ranked, pool, config.cross_encoder)
         scores = dict(ranked)
-        pool = _load(db, list(scores))
         best, worst = max(scores.values(), default=0.0), min(scores.values(), default=0.0)
         hits = []
         for job_id, score in ranked:

@@ -33,12 +33,19 @@ class RerankConfig(BaseModel):
         return self
 
 
+class CrossEncoderConfig(BaseModel):
+    enabled: bool = False
+    model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
+    top_n: int = Field(20, ge=2, le=100)
+
+
 class SearchConfig(BaseModel):
     candidates: int = Field(50, ge=1, le=200)
     min_similarity: float = 0.0
     weak_similarity: float = 0.58
     fusion: FusionConfig
     rerank: RerankConfig
+    cross_encoder: CrossEncoderConfig = CrossEncoderConfig()
 
     def override(self, changes: dict[str, Any]) -> "SearchConfig":
         """Copy with dotted-key changes, for example {"fusion.rrf_k": 30}."""

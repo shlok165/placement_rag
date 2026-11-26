@@ -25,3 +25,9 @@ urgency_window_days = 14
 # Cosine similarity range that maps to 0..1 for the profile component.
 similarity_floor = 0.50
 similarity_ceiling = 0.85
+
+[cross_encoder]
+# Reorders the top fused candidates with a small cross-encoder. See docs/EVALS.md for why it is off.
+enabled = false
+model = "Xenova/ms-marco-MiniLM-L-6-v2"
+top_n = 20

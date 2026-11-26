@@ -1,7 +1,7 @@
 COMPOSE ?= docker compose
 TEST = $(COMPOSE) run --rm test
 
-.PHONY: up down test lint migrate seed eval eval-live e2e backup restore
+.PHONY: up down test lint migrate seed eval eval-cross eval-blind eval-live e2e backup restore
 
 up: ## Build and start everything
 	$(COMPOSE) up --build -d --wait
@@ -28,6 +28,14 @@ seed: ## Load demo accounts and synthetic postings
 eval: ## Everything that is free: retrieval and offline agent evals
 	$(COMPOSE) build test
 	$(TEST) sh -c "alembic upgrade head && python -m evals.retrieval && python -m evals.agent"
+
+eval-cross: ## Cross-encoder experiment on the development half (downloads the model)
+	$(COMPOSE) build test
+	$(COMPOSE) run --rm -e HF_HUB_OFFLINE=0 test sh -c "alembic upgrade head && python -m evals.retrieval --cross"
+
+eval-blind: ## The blind set, once per release: make eval-blind RELEASE=v1.0.0
+	$(COMPOSE) build test
+	$(COMPOSE) run --rm -e HF_HUB_OFFLINE=0 test sh -c "alembic upgrade head && python -m evals.retrieval --blind --release $(RELEASE)"
 
 eval-live: ## Capped live agent eval. Prints the expected calls first
 	$(COMPOSE) build test

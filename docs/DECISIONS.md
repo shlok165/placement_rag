@@ -88,3 +88,13 @@ Checked against the live OpenAPI document (`/openapi.json`, version 0.3.0) and `
 - **One live run only.** Later changes were not measured live, to respect the call budget.
 - **Isolated corpus.** CLI evals run in a separate database built from the synthetic dataset with a
   fixed reference date, so numbers are reproducible and never mix with demo data.
+- **The blind set has its own corpus.** Its 104 postings are evaluated in a fresh database, not
+  mixed into the main 156, so its numbers do not depend on the main set at all. It reuses the
+  student profiles, because those describe students rather than postings.
+- **Once per release is enforced by a log.** `evals/blind/runs.jsonl` is committed; the script
+  refuses a second run for a release unless `--force` is given, and any forced run stays visible
+  in the log.
+- **Paired bootstrap for differences.** Configurations are compared case by case. Two separate
+  intervals overlap far more often than the paired difference crosses zero.
+- **Cross-encoder kept as an off switch.** It lost on the development half, so it is off. The
+  switch stays so the blind run can record it and so the result can be reproduced.

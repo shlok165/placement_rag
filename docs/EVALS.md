@@ -25,6 +25,25 @@ The held-out half was not used to choose weights, but its scores were visible wh
 ranker was being fixed, so treat it as a sanity check and not as a blind test. With about 38 cases
 per half, one case moves hit@k by 2.6 points.
 
+## Blind set, intervals and messy text
+
+- **Blind set** (`evals/blind/`). A second generator run with its own seed, other titles, other
+  description sentences, other sector texts and other sector and city combinations (Kolkata,
+  Ahmedabad, Jaipur, Kochi, Indore and others), with 50 queries written fresh in new words. It was
+  written before any of its numbers existed and is never used to choose weights or to find bugs.
+  `python -m evals.retrieval --blind --release <tag>` runs it once per release and logs the run in
+  `evals/blind/runs.jsonl`; a second run for the same release is refused. Labels come from the
+  generator's hidden attributes, exactly as in the main set, so the personal slice has the same
+  circularity caveat.
+- **Intervals.** Every headline number carries a bootstrap 95% interval over cases (1000
+  resamples, seed 7). Differences between configurations are judged with a paired bootstrap on the
+  same cases, which is much tighter than comparing two intervals by eye. A `*` marks a difference
+  whose interval excludes zero.
+- **Messy text.** The same postings after a deterministic noise function (`evals/noise.py`):
+  abbreviations such as "ML/AI", "SDE", "Engg" and "k8s", swapped letters in about one word in eight,
+  titles in capitals or lower case, "URGENT HIRING" openers and a legal closer. Labels come from the
+  clean posting.
+
 ## What the numbers say
 
 - **Hybrid does not win everywhere.** Against semantic search alone it finds more of the relevant
@@ -43,6 +62,19 @@ per half, one case moves hit@k by 2.6 points.
 - **Circularity.** Labels in the personal slice use the same kind of facts as the re-ranker (type,
   place, skills), so its gain there is partly built in. The topic and constraint slices do not have
   this problem.
+- **Most gaps are inside the noise.** On the 38 held-out cases nothing beats semantic search by more
+  than the noise. Plain hybrid is −0.026 hit@5 and +0.006 nDCG@10; even the full pipeline's +0.035
+  nDCG@10 has an interval from −0.04 to +0.11. Only keyword-only search is clearly worse. A
+  difference of a few points needs far more than 38 cases to show.
+- **Noise costs little.** Messy text lowers nDCG@10 by 0.01 to 0.04, and no drop has an interval
+  that excludes zero. Keyword search loses most (hit@5 −0.05), as expected for exact word matching;
+  the embeddings absorb abbreviations and typos well. Hybrid hit@5 even rises by one case.
+- **The cross-encoder was dropped.** `Xenova/ms-marco-MiniLM-L-6-v2` over the top 20 fused
+  candidates lowered nDCG@10 on the development half by 0.064 (interval −0.12 to −0.01) and made a
+  query about eight times slower. With the personal re-rank after it, the loss was 0.024. The model
+  is trained on web questions and passages; these queries are short, vague role descriptions. It
+  stays behind `cross_encoder.enabled = false` in `weights.toml` and is measured once on the blind
+  set for the record. The model is not in the image, so turning it on needs a download.
 
 ## Regression guard
 
@@ -52,25 +84,33 @@ CI runs `python -m evals.retrieval --check` and fails when hit@5 of the full pip
 ## Retrieval results
 
 <!-- retrieval:start -->
-156 synthetic postings, 77 labelled query and profile pairs. No LLM calls.
+156 synthetic postings, 77 labelled query and profile pairs. No LLM calls. Brackets hold bootstrap 95% intervals over cases (1000 resamples, seed 7).
 
 ### Held-out half (38 cases, not used to choose weights)
 
-| Configuration | hit@1 | hit@3 | hit@5 | MRR | nDCG@10 | recall@50 |
-|---|---|---|---|---|---|---|
-| Semantic only | 0.711 | 0.895 | 0.895 | 0.799 | 0.670 | 0.888 |
-| Keyword only | 0.500 | 0.579 | 0.632 | 0.562 | 0.476 | 0.752 |
-| Hybrid | 0.658 | 0.842 | 0.868 | 0.754 | 0.676 | 0.897 |
-| Hybrid + personal re-rank | 0.711 | 0.868 | 0.947 | 0.808 | 0.705 | 0.897 |
+| Configuration | hit@1 | hit@5 | MRR | nDCG@10 | recall@50 |
+|---|---|---|---|---|---|
+| Semantic only | 0.711 [0.55, 0.84] | 0.895 [0.79, 0.97] | 0.799 [0.69, 0.89] | 0.670 [0.57, 0.76] | 0.888 |
+| Keyword only | 0.500 [0.34, 0.66] | 0.632 [0.47, 0.79] | 0.562 [0.42, 0.70] | 0.476 [0.35, 0.61] | 0.752 |
+| Hybrid | 0.658 [0.50, 0.82] | 0.868 [0.76, 0.97] | 0.754 [0.63, 0.86] | 0.676 [0.57, 0.77] | 0.897 |
+| Hybrid + personal re-rank | 0.711 [0.55, 0.84] | 0.947 [0.87, 1.00] | 0.808 [0.70, 0.90] | 0.705 [0.63, 0.78] | 0.897 |
+
+Paired differences on the same cases; * marks an interval that excludes zero.
+
+| Compared with Semantic only | hit@5 | ndcg@10 |
+|---|---|---|
+| Keyword only | -0.263 [-0.42, -0.11] * | -0.194 [-0.31, -0.06] * |
+| Hybrid | -0.026 [-0.08, +0.00] | +0.006 [-0.04, +0.05] |
+| Hybrid + personal re-rank | +0.053 [-0.05, +0.16] | +0.035 [-0.04, +0.11] |
 
 ### All 77 cases
 
-| Configuration | hit@1 | hit@3 | hit@5 | MRR | nDCG@10 | recall@50 |
-|---|---|---|---|---|---|---|
-| Semantic only | 0.714 | 0.870 | 0.883 | 0.794 | 0.655 | 0.898 |
-| Keyword only | 0.571 | 0.675 | 0.740 | 0.644 | 0.545 | 0.765 |
-| Hybrid | 0.701 | 0.844 | 0.857 | 0.778 | 0.690 | 0.924 |
-| Hybrid + personal re-rank | 0.740 | 0.909 | 0.948 | 0.834 | 0.740 | 0.924 |
+| Configuration | hit@1 | hit@5 | MRR | nDCG@10 | recall@50 |
+|---|---|---|---|---|---|
+| Semantic only | 0.714 [0.60, 0.81] | 0.883 [0.82, 0.95] | 0.794 [0.71, 0.87] | 0.655 [0.58, 0.72] | 0.898 |
+| Keyword only | 0.571 [0.47, 0.68] | 0.740 [0.64, 0.83] | 0.644 [0.55, 0.73] | 0.545 [0.46, 0.63] | 0.765 |
+| Hybrid | 0.701 [0.60, 0.81] | 0.857 [0.78, 0.94] | 0.778 [0.70, 0.85] | 0.690 [0.62, 0.75] | 0.924 |
+| Hybrid + personal re-rank | 0.740 [0.65, 0.84] | 0.948 [0.90, 0.99] | 0.834 [0.77, 0.90] | 0.740 [0.69, 0.79] | 0.924 |
 
 ### Slice: constraint
 
@@ -98,6 +138,15 @@ CI runs `python -m evals.retrieval --check` and fails when hit@5 of the full pip
 | Keyword only | 0.758 | 0.788 | 0.818 | 0.783 | 0.684 | 0.849 |
 | Hybrid | 0.849 | 0.970 | 0.970 | 0.903 | 0.816 | 0.992 |
 | Hybrid + personal re-rank | 0.818 | 1.000 | 1.000 | 0.904 | 0.807 | 0.992 |
+
+### Messy text (all cases, same postings after deterministic noise)
+
+| Configuration | nDCG@10 clean | messy | change [95% CI] | hit@5 clean | messy | change |
+|---|---|---|---|---|---|---|
+| Semantic only | 0.655 | 0.639 | -0.016 [-0.05, +0.01] | 0.883 | 0.883 | +0.000 |
+| Keyword only | 0.545 | 0.506 | -0.039 [-0.08, +0.00] | 0.740 | 0.688 | -0.052 |
+| Hybrid | 0.690 | 0.662 | -0.028 [-0.06, +0.01] | 0.857 | 0.883 | +0.026 |
+| Hybrid + personal re-rank | 0.740 | 0.726 | -0.014 [-0.05, +0.02] | 0.948 | 0.935 | -0.013 |
 
 ### Fusion weight sweep (hybrid, no re-rank, development half)
 
@@ -137,6 +186,25 @@ CI runs `python -m evals.retrieval --check` and fails when hit@5 of the full pip
 | relevance 1.5, skills 0.2, preferences 0.3 | 0.769 | 0.846 | 0.897 | 0.831 | 0.741 | 0.949 |
 | relevance 1.5, skills 0.3, preferences 0.2 | 0.769 | 0.846 | 0.897 | 0.827 | 0.743 | 0.949 |
 <!-- retrieval:end -->
+
+## Cross-encoder experiment
+
+<!-- cross-encoder:start -->
+Cross-encoder `Xenova/ms-marco-MiniLM-L-6-v2` over the top 20 fused candidates (development half, 39 cases).
+
+| Configuration | nDCG@10 | change [95% CI] | hit@5 | change | ms per query |
+|---|---|---|---|---|---|
+| Hybrid | 0.704 |  | 0.846 |  | 21 |
+| Hybrid + cross-encoder | 0.640 | -0.064 [-0.12, -0.01] | 0.769 | -0.077 | 163 |
+| Hybrid + personal re-rank | 0.775 |  | 0.949 |  | 31 |
+| Hybrid + cross-encoder + personal re-rank | 0.751 | -0.024 [-0.05, +0.00] | 0.923 | -0.026 | 180 |
+<!-- cross-encoder:end -->
+
+## Blind test set
+
+<!-- blind:start -->
+Not run yet.
+<!-- blind:end -->
 
 ## Agent results
 

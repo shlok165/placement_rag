@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import EvalCase, EvalRun, Job, JobStatus
-from evals.harness import STANDARD_CONFIGS, LabelledCase, evaluate
+from evals.harness import STANDARD_CONFIGS, LabelledCase, evaluate, stored
 
 
 def run_retrieval_eval(db: Session, run_id: int) -> None:
@@ -27,7 +27,7 @@ def run_retrieval_eval(db: Session, run_id: int) -> None:
         run.status = "failed"
         run.metrics = {"message": "No case has an open relevant posting.", "skipped": skipped}
     else:
-        results = [evaluate(db, cases, config) for config in STANDARD_CONFIGS]
+        results = [stored(evaluate(db, cases, config)) for config in STANDARD_CONFIGS]
         run.status = "done"
         run.metrics = {"configs": results, "skipped": skipped}
     db.commit()
