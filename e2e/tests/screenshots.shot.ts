@@ -98,6 +98,8 @@ test('coordinator portal', async ({ page }) => {
       '',
       'About the role:',
       'Map crop health from satellite images and explain the maps to farmers.',
+      // A new reference each run, so a rerun is not rejected as an exact duplicate.
+      `Reference: KA-${Date.now() % 100000}`,
     ].join('\n'),
   );
   await page.getByRole('button', { name: 'Read posting' }).click();
@@ -108,7 +110,7 @@ test('coordinator portal', async ({ page }) => {
   await shot(page, '/admin/postings', 'admin-postings');
   await page.goto('/admin/evals');
   await page.getByRole('button', { name: 'Run retrieval eval' }).click();
-  await expect(page.getByRole('table')).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByRole('table').first()).toBeVisible({ timeout: 60_000 });
   await settle(page);
   await page.screenshot({ path: `${OUT}/admin-evals.png` });
   await shot(page, '/admin/usage', 'admin-usage');

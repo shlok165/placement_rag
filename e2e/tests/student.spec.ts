@@ -22,6 +22,8 @@ test('a new student onboards, searches, saves and tracks', async ({ page }) => {
   await page.getByRole('link', { name: 'Browse', exact: true }).click();
   await page.getByRole('searchbox').fill('train models that learn from behaviour');
   await page.getByRole('button', { name: 'Search', exact: true }).click();
+  // The search is in the address bar; wait for it before acting on results.
+  await expect(page).toHaveURL(/q=train/);
   const first = page.getByRole('region', { name: 'Results' }).getByRole('heading', { level: 3 }).first();
   await expect(first).toContainText(/ML|Machine Learning|AI/);
 
