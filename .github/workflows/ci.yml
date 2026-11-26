@@ -18,7 +18,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
         with:
           node-version: 22
@@ -35,7 +35,7 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: cp .env.example .env
       - run: docker compose build test
       - name: Lint and type-check
@@ -49,7 +49,7 @@ jobs:
     name: Python dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
       - name: pip-audit on the locked runtime dependencies
         working-directory: backend
@@ -61,7 +61,7 @@ jobs:
     name: Build images and browser tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - run: cp .env.example .env
       - run: docker compose up --build --wait --wait-timeout 240
       - run: curl -fsS http://localhost:8080/readyz
