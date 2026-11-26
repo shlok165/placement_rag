@@ -55,13 +55,16 @@ def semantic(
     db.execute(text("SET LOCAL hnsw.ef_search = 200"))
     db.execute(text("SET LOCAL hnsw.iterative_scan = strict_order"))
     distance = Job.embedding.cosine_distance(vector)
+    # Order by distance alone: a second sort key stops Postgres from using the HNSW index, which
+    # turned every query into a full scan (see docs/PERFORMANCE.md). Ties are ordered below.
     rows = db.execute(
         select(Job.id, (1 - distance).label("similarity"))
         .where(*clauses, Job.embedding.is_not(None))
-        .order_by(distance, Job.id)
+        .order_by(distance)
         .limit(limit)
-    )
-    return [(row.id, float(row.similarity)) for row in rows if row.similarity >= min_similarity]
+    ).all()
+    hits = sorted(((row.id, float(row.similarity)) for row in rows), key=lambda h: (-h[1], h[0]))
+    return [hit for hit in hits if hit[1] >= min_similarity]
 
 
 MAX_TERMS = 16

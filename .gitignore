@@ -20,3 +20,6 @@ backups/
 .vscode/
 *.tsbuildinfo
 e2e/shots/
+
+# Benchmark embedding cache
+evals/.cache/
