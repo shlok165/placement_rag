@@ -136,6 +136,8 @@ def reject(action_id: int, user: CurrentUser, db: Db) -> PendingAction:
 class FeedbackIn(BaseModel):
     rating: Literal["up", "down"]
     comment: str = Field("", max_length=1000)
+    # The student lets coordinators see the steps behind this answer. None keeps the earlier choice.
+    share_trace: bool | None = None
 
 
 @router.post("/chat/messages/{message_id}/feedback", status_code=204)
@@ -158,6 +160,8 @@ def rate(message_id: int, body: FeedbackIn, user: CurrentUser, db: Db) -> None:
     ) or MessageFeedback(user_id=user.id, message_id=message_id)
     row.rating = body.rating
     row.comment = body.comment or row.comment or ""
+    if body.share_trace is not None:
+        row.share_trace = body.share_trace
     db.add(row)
     db.commit()
 

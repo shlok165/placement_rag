@@ -10,6 +10,7 @@ import { PostingDetailPage } from '@/features/admin/PostingDetailPage';
 import { PostingsPage } from '@/features/admin/PostingsPage';
 import { StudentsPage } from '@/features/admin/StudentsPage';
 import { TeamPage } from '@/features/admin/TeamPage';
+import { TraceDetailPage, TracesPage } from '@/features/admin/TracesPage';
 import { UsagePage } from '@/features/admin/UsagePage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { AcceptInvitePage, RegisterPage } from '@/features/auth/RegisterPage';
@@ -41,6 +42,8 @@ export function App() {
             <Route path="postings/:id" element={<PostingDetailPage />} />
             <Route path="students" element={<StudentsPage />} />
             <Route path="evals" element={<EvalsPage />} />
+            <Route path="traces" element={<TracesPage />} />
+            <Route path="traces/:id" element={<TraceDetailPage />} />
             <Route path="usage" element={<UsagePage />} />
             <Route path="announcements" element={<AnnouncementsPage />} />
             <Route path="team" element={<TeamPage />} />

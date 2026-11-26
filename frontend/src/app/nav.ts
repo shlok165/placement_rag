@@ -16,6 +16,7 @@ import {
   Settings,
   Users,
   UserCog,
+  Waypoints,
 } from 'lucide-react';
 
 export type NavItem = { to: string; label: string; icon: LucideIcon; end?: boolean };
@@ -43,6 +44,7 @@ export const adminNav: NavItem[] = [
 
 export const adminSecondaryNav: NavItem[] = [
   { to: '/admin/evals', label: 'Evals', icon: FlaskConical },
+  { to: '/admin/traces', label: 'Agent traces', icon: Waypoints },
   { to: '/admin/usage', label: 'LLM usage', icon: Gauge },
   { to: '/admin/announcements', label: 'Announcements', icon: Megaphone },
   { to: '/admin/team', label: 'Team', icon: UserCog },
