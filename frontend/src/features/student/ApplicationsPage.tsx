@@ -14,6 +14,7 @@ import { Link } from 'react-router';
 import { useTrack } from './hooks';
 import { QueryState } from '@/components/QueryState';
 import { Button } from '@/components/ui/button';
+import { CalendarCard } from './CalendarCard';
 import { Card, EmptyState, PageHeader } from '@/components/ui/display';
 import { Field, Select, Textarea } from '@/components/ui/form';
 import { Dialog } from '@/components/ui/overlay';
@@ -260,6 +261,9 @@ export function ApplicationsPage() {
           )
         }
       </QueryState>
+      <div className="mt-8 max-w-2xl">
+        <CalendarCard />
+      </div>
       <Dialog
         open={editing !== null}
         onOpenChange={(open) => !open && setEditing(null)}
