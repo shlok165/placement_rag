@@ -16,6 +16,9 @@ FROM deps AS model
 RUN /opt/venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir='/opt/models')"
 
 FROM python:3.12-slim-bookworm AS runtime
+# Debian security fixes published after the base image was built.
+RUN apt-get update && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
 RUN groupadd -g 10001 app && useradd -u 10001 -g app -m app \
     && mkdir -p /data/raw /srv && chown -R app:app /data /srv
 WORKDIR /srv
