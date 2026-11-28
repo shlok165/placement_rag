@@ -1,0 +1,57 @@
+name: Deploy
+
+# Runs after CI passes on main, and updates the live server over SSH.
+# Needs three repository secrets: DEPLOY_HOST, DEPLOY_SSH_KEY and DEPLOY_KNOWN_HOSTS
+# (see docs/DEPLOY.md). Without them the job skips itself.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+    steps:
+      - name: Check the deploy secrets exist
+        id: ready
+        run: |
+          if [ -z "$HOST" ]; then
+            echo "No DEPLOY_HOST secret, so there is nothing to deploy to."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Set up SSH
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+      - name: Pull, rebuild and restart
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          ssh -i ~/.ssh/deploy -o BatchMode=yes -o ServerAliveInterval=30 "azureuser@$HOST" '
+            set -e
+            cd ~/placement_rag
+            git pull --ff-only
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build --wait
+            docker image prune -f > /dev/null
+            git log -1 --format="Deployed %h: %s"
+          '
+      - name: Check the live site answers
+        if: steps.ready.outputs.ok == 'true'
+        run: curl -fsS --retry 5 --retry-delay 10 "https://$HOST/readyz"

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.db.models import Role, StudentProfile, User
+from app.db.models import Announcement, Role, StudentProfile, User
 from app.search.profiles import refresh_embedding
 from evals.corpus import load_eval_set, load_jobs
 
@@ -83,6 +83,41 @@ def seed_users(db: Session) -> None:
         user.profile = profile
         db.add(user)
     db.commit()
+
+
+SHOWCASE_STUDENT = "demo.student@placementrag.demo"
+SHOWCASE_NOTICE = (
+    "Demo site: the postings here are synthetic samples, not real openings. "
+    "IIT Ropar students can still sign up with their institute email."
+)
+
+
+def seed_showcase(db: Session, password: str) -> dict[str, int]:
+    """Sample postings and one shared demo student for a public deployment.
+
+    Safe to run again: postings are only added once, and the demo student is re-created if a
+    visitor deleted it. The password comes from the operator, never from the code.
+    """
+    if len(password) < 12:
+        raise ValueError("Use a demo password of at least 12 characters.")
+    ids = load_jobs(db, datetime.now(UTC).date())
+    student = db.scalar(select(User).where(User.email == SHOWCASE_STUDENT))
+    if student is None:
+        student = User(email=SHOWCASE_STUDENT, role=Role.student, full_name="Demo Student")
+        spec = DEMO_STUDENTS["asha@example.com"]
+        profile = StudentProfile(
+            skills=spec["skills"], preferences=spec["preferences"], parsed_profile=spec["parsed"]
+        )
+        refresh_embedding(profile)
+        student.profile = profile
+        student.onboarded_at = student.consent_at = datetime.now(UTC)
+        db.add(student)
+    student.password_hash = hash_password(password)
+    student.is_active = True
+    if not db.scalar(select(Announcement.id).where(Announcement.message == SHOWCASE_NOTICE)):
+        db.add(Announcement(message=SHOWCASE_NOTICE, is_active=True))
+    db.commit()
+    return {"postings": len(ids)}
 
 
 def seed_jobs(db: Session) -> None:

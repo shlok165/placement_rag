@@ -3,6 +3,7 @@
 import argparse
 import getpass
 import logging
+import os
 import sys
 
 from sqlalchemy import select
@@ -39,6 +40,20 @@ def create_coordinator(email: str, name: str) -> int:
     return 0
 
 
+def showcase() -> int:
+    """Sample postings and a shared demo student for a public demo. Reads SHOWCASE_PASSWORD."""
+    password = os.environ.get("SHOWCASE_PASSWORD", "")
+    try:
+        with get_sessionmaker()() as db:
+            result = seed.seed_showcase(db, password)
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    postings = result["postings"]
+    print(f"Showcase ready: {postings} sample postings, demo student {seed.SHOWCASE_STUDENT}.")
+    return 0
+
+
 def main() -> int:
     configure_logging()
     parser = argparse.ArgumentParser(prog="app.cli")
@@ -47,9 +62,12 @@ def main() -> int:
     creator = commands.add_parser("create-coordinator", help="create a coordinator account")
     creator.add_argument("email")
     creator.add_argument("name")
+    commands.add_parser("showcase", help="sample postings and a demo student (SHOWCASE_PASSWORD)")
     args = parser.parse_args()
     if args.command == "create-coordinator":
         return create_coordinator(args.email, args.name)
+    if args.command == "showcase":
+        return showcase()
     bootstrap()
     return 0
 
