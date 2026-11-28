@@ -4,7 +4,13 @@ WORKDIR /srv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PROJECT_ENVIRONMENT=/opt/venv \
     UV_PYTHON_DOWNLOADS=never UV_PYTHON=/usr/local/bin/python3.12
 COPY backend/pyproject.toml backend/uv.lock ./
-RUN uv sync --frozen --no-dev --no-cache
+# The locked versions, with hashes, installed by pip. uv's TLS client offers a post-quantum key
+# exchange whose larger handshake some network paths drop (seen from an Azure region to PyPI's
+# CDN); pip uses this image's OpenSSL 3.0 handshake, which gets through everywhere.
+RUN uv export --frozen --no-dev --no-emit-project --format requirements-txt -o /tmp/requirements.txt \
+    && python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --no-deps --require-hashes -r /tmp/requirements.txt \
+    && rm /tmp/requirements.txt
 
 FROM deps AS model
 RUN /opt/venv/bin/python -c "from fastembed import TextEmbedding; TextEmbedding('BAAI/bge-small-en-v1.5', cache_dir='/opt/models')"
