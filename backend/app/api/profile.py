@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, func, select
 
 from app.api.deps import CurrentUser, Db
-from app.core.errors import AppError, Conflict
+from app.core.errors import AppError, Conflict, Forbidden
 from app.core.security import clear_cookies, verify_password
 from app.core.storage import get_storage
 from app.core.uploads import extract_text, read_document
@@ -40,6 +40,7 @@ from app.schemas.student import (
     ResumeOut,
 )
 from app.search.profiles import refresh_embedding
+from app.seed import SHOWCASE_STUDENT
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 
@@ -243,7 +244,11 @@ class DeleteIn(BaseModel):
 @router.post("/delete-account", status_code=204)
 def delete_account(body: DeleteIn, user: CurrentUser, db: Db, response: Response) -> None:
     """Remove the account and everything linked to it, including stored files."""
-    if not verify_password(user.password_hash, body.password):
+    if user.email == SHOWCASE_STUDENT:
+        raise Forbidden("The shared demo account cannot be deleted. Your own account can be.")
+    # Accounts made by Google sign-in have no password; the session itself is the proof.
+    google_only = user.password_hash == "!google"
+    if not google_only and not verify_password(user.password_hash, body.password):
         raise AppError("That password is not correct.", code="bad_password")
     if user.role == Role.coordinator:
         others = db.scalar(

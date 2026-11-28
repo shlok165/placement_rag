@@ -13,6 +13,7 @@ import { TeamPage } from '@/features/admin/TeamPage';
 import { TraceDetailPage, TracesPage } from '@/features/admin/TracesPage';
 import { UsagePage } from '@/features/admin/UsagePage';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { WelcomePage } from '@/features/auth/WelcomePage';
 import { AcceptInvitePage, RegisterPage } from '@/features/auth/RegisterPage';
 import { CopilotPage } from '@/features/copilot/CopilotPage';
 import { MemoryPage } from '@/features/copilot/MemoryPage';
@@ -30,6 +31,7 @@ import { SurveyPage } from '@/features/student/SurveyPage';
 export function App() {
   return (
     <Routes>
+      <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />

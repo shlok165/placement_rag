@@ -4,8 +4,9 @@ from fastapi import APIRouter, Request, Response
 from sqlalchemy import select
 
 from app.api.deps import CurrentUser, Db, client_ip
+from app.api.google import enabled as google_enabled
 from app.core.config import get_settings
-from app.core.errors import AppError, Conflict, Forbidden, Unauthenticated
+from app.core.errors import AppError, Conflict, Forbidden, NotFound, Unauthenticated
 from app.core.security import (
     SESSION_COOKIE,
     check_login_delay,
@@ -22,6 +23,7 @@ from app.core.security import (
 from app.db.audit import audit
 from app.db.models import Invite, Role, StudentProfile, User
 from app.schemas.auth import AcceptInviteIn, LoginIn, RegisterIn, UserOut
+from app.seed import SHOWCASE_STUDENT
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -44,6 +46,33 @@ def login(body: LoginIn, request: Request, response: Response, db: Db) -> User:
     if not user.is_active:
         raise Forbidden("This account is inactive. Contact the CAPS office.", code="inactive")
     clear_attempts(db, pair)
+    start_session(db, user, response)
+    return user
+
+
+@router.get("/demo")
+def demo_status() -> dict[str, bool]:
+    """Whether this server offers one-click sign-in to the shared demo student."""
+    return {"enabled": get_settings().showcase_enabled}
+
+
+@router.get("/options")
+def sign_in_options() -> dict[str, bool]:
+    """Which extra ways to sign in this server offers."""
+    return {"demo": get_settings().showcase_enabled, "google": google_enabled()}
+
+
+@router.post("/demo", response_model=UserOut)
+def demo_login(request: Request, response: Response, db: Db) -> User:
+    """Sign in as the shared demo student, without a password, where the operator allows it."""
+    if not get_settings().showcase_enabled:
+        raise NotFound("The demo is not available on this server.")
+    ip_key = f"ip:demo:{client_ip(request)}"
+    check_rate_limit(db, ip_key)
+    record_attempt(db, ip_key)
+    user = db.scalar(select(User).where(User.email == SHOWCASE_STUDENT, User.is_active))
+    if user is None:
+        raise NotFound("The demo account is not set up yet.")
     start_session(db, user, response)
     return user
 

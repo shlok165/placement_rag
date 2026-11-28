@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
 import { AuthLayout } from './AuthLayout';
+import { GoogleButton } from './GoogleButton';
 import { Button } from '@/components/ui/button';
 import { Alert } from '@/components/ui/display';
 import { Field, Input } from '@/components/ui/form';
@@ -50,6 +51,7 @@ function AccountForm({ invite }: { invite?: string }) {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
+      <GoogleButton />
       {submit.isError && <Alert tone="danger">{messageOf(submit.error)}</Alert>}
       <Field label="Full name" error={error?.fieldError('full_name')}>
         {(ids) => (

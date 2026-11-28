@@ -46,7 +46,8 @@ for (const colorScheme of ['light', 'dark'] as const) {
   test(`axe finds nothing on public and student pages, ${colorScheme}`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.emulateMedia({ colorScheme, reducedMotion: 'reduce' });
-    await check(page, '/login');
+    await check(page, '/welcome');
+  await check(page, '/login');
     await check(page, '/register');
     await signIn(page, STUDENT);
     for (const path of studentPages) await check(page, path);

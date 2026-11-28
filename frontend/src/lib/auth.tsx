@@ -37,6 +37,33 @@ export function useLogin() {
   });
 }
 
+export type SignInOptions = { demo: boolean; google: boolean };
+
+/** Extra ways to sign in that this server offers: the shared demo account and Google. */
+export function useSignInOptions() {
+  return useQuery({
+    queryKey: ['sign-in-options'],
+    queryFn: () => api<SignInOptions>('/auth/options'),
+    staleTime: Infinity,
+  });
+}
+
+export function useDemoAvailable() {
+  const { data, ...rest } = useSignInOptions();
+  return { ...rest, data: data?.demo };
+}
+
+export function useDemoLogin() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: () => api<User>('/auth/demo', { method: 'POST' }),
+    onSuccess: (user) => {
+      client.clear();
+      client.setQueryData(['me'], user);
+    },
+  });
+}
+
 export function useLogout() {
   const client = useQueryClient();
   return useMutation({

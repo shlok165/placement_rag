@@ -34,7 +34,7 @@ export function RequireUser() {
   if (isPending || isError) return <FullPageStatus />;
   if (!user) {
     const next = encodeURIComponent(location.pathname + location.search);
-    return <Navigate to={location.pathname === '/' ? '/login' : `/login?next=${next}`} replace />;
+    return <Navigate to={location.pathname === '/' ? '/welcome' : `/login?next=${next}`} replace />;
   }
   return <Outlet />;
 }

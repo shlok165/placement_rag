@@ -56,4 +56,30 @@ describe('auth', () => {
     expect(calls.some((c) => c.key.startsWith('POST'))).toBe(false);
     expect(await axeViolations(container)).toEqual([]);
   });
+
+  it('sends signed-out visitors to an accessible welcome page with a live demo', async () => {
+    const calls = mockApi({
+      'GET /auth/me': signedOut(),
+      'GET /auth/options': { demo: true, google: false },
+      'POST /auth/demo': studentUser,
+    });
+    const { container } = renderPage(<App />, '/');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: /Find the role that fits you/ }),
+    ).toBeInTheDocument();
+    expect(await axeViolations(container)).toEqual([]);
+    await userEvent.click((await screen.findAllByRole('button', { name: /Try the live demo/ }))[0]);
+    await waitFor(() => expect(calls.some((c) => c.key === 'POST /auth/demo')).toBe(true));
+  });
+
+  it('offers the demo account on the sign-in page only where it is switched on', async () => {
+    mockApi({ 'GET /auth/me': signedOut(), 'GET /auth/options': { demo: false, google: true } });
+    renderPage(<App />, '/login');
+    expect(await screen.findByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /demo account/ })).toBeNull();
+    expect(await screen.findByRole('link', { name: 'Continue with Google' })).toHaveAttribute(
+      'href',
+      '/api/auth/google',
+    );
+  });
 });

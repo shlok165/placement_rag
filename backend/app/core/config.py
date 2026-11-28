@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     embedding_model: str = "BAAI/bge-small-en-v1.5"
 
     seed_demo: bool = False
+    # Public demo: one-click sign-in to the shared demo student created by `app.cli showcase`.
+    showcase_enabled: bool = False
+    # Sign in with Google. Both empty: the button is hidden.
+    google_client_id: str = ""
+    google_client_secret: SecretStr = SecretStr("")
     allowed_email_domains: str = "iitrpr.ac.in"
     dev_email_domains: str = ""
     cookie_secure: bool = False

@@ -231,6 +231,10 @@ PUBLIC = {"/healthz", "/readyz", "/metrics"}
 PUBLIC |= {"/api/auth/login", "/api/auth/register", "/api/auth/accept-invite"}
 # Calendar apps cannot sign in; the secret in the path is checked instead (see test_calendar).
 PUBLIC |= {"/api/calendar/feed/{token}.ics"}
+# One-click demo sign-in: off unless SHOWCASE_ENABLED, and then rate limited (see test_showcase).
+PUBLIC |= {"/api/auth/demo", "/api/auth/options"}
+# Google sign-in: a redirect to Google, and its callback, which checks the state cookie.
+PUBLIC |= {"/api/auth/google", "/api/auth/callback/google"}
 
 
 def test_every_other_api_route_needs_a_session(anonymous: Api) -> None:

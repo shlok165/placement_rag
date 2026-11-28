@@ -21,6 +21,7 @@ from app.api import (
     calendar,
     chat,
     events,
+    google,
     health,
     profile,
     search,
@@ -126,6 +127,7 @@ def create_app() -> FastAPI:
     modules = (
         health,
         auth,
+        google,
         admin_team,
         admin_jobs,
         admin_insights,

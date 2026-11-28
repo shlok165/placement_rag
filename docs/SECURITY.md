@@ -9,6 +9,8 @@ Reviewed against the code before release. Each row names where it is enforced an
 | Sessions | Opaque token, only its hash stored, HTTP-only, SameSite, Secure in production | `core/security.py` | `test_auth.py` |
 | CSRF | Per-session token required on every unsafe request | `api/deps.py` | `test_auth.py` |
 | Brute force | Progressive delay per account and address pair (five free tries, then 1 s doubling to 15 minutes), plus a cap per address across accounts | `core/security.py` | `test_auth.py` |
+| Google sign-in | Authorization code flow with a one-time state cookie; only verified emails in `ALLOWED_EMAIL_DOMAINS`; accounts it creates have no usable password | `api/google.py` | `test_google.py` |
+| Demo sign-in | Off unless `SHOWCASE_ENABLED`; one shared student, rate limited per address, cannot be deleted | `api/auth.py` | `test_showcase.py` |
 | Client address | `X-Forwarded-For` is believed only when the direct peer is in `TRUSTED_PROXIES`; otherwise the peer address is used | `api/deps.py` | `test_auth.py` |
 | Roles | Every admin route is checked as a student (403) and a visitor (401) | `api/deps.py` | `test_auth.py` |
 | Isolation | Saves, applications, searches, notifications, chats, actions and memory are owner-only | `api/student.py`, `api/chat.py` | `test_student.py`, `test_chat.py` |
